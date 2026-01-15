@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "python-webapp-template"
+name = "lightstack"
 version = "0.1.0"
-description = "A template for Python web applications with React frontend"
-authors = ["Your Name <your.email@example.com>"]
+description = "Priority-based alert management system for Home Assistant and Inovelli switches"
+authors = ["sjafferali"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "app", from = "backend"}]
