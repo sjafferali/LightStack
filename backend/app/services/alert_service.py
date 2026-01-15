@@ -175,8 +175,8 @@ class AlertService:
         self.db.add(history_entry)
 
         await self.db.commit()
-        await self.db.refresh(alert)
-        return alert
+        # Re-fetch with config eagerly loaded to avoid lazy loading issues
+        return await self.get_alert_by_key(alert_key, include_config=True)  # type: ignore[return-value]
 
     async def clear_alert(
         self, alert_key: str, note: str | None = None
@@ -199,9 +199,9 @@ class AlertService:
             self.db.add(history_entry)
 
             await self.db.commit()
-            await self.db.refresh(alert)
 
-        return alert
+        # Re-fetch with config eagerly loaded to avoid lazy loading issues
+        return await self.get_alert_by_key(alert_key, include_config=True)
 
     async def clear_all_alerts(self, note: str | None = None) -> list[str]:
         """Clear all active alerts. Returns list of cleared alert keys."""
