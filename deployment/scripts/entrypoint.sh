@@ -61,6 +61,17 @@ fi
 echo "Applying database migrations..."
 alembic upgrade head || echo "Migration completed or no changes needed"
 
+# Set WORKERS dynamically if not provided
+if [ -z "$WORKERS" ]; then
+    # Calculate based on CPU cores: 2 * cores + 1, with min of 2 and max of 8
+    CPU_CORES=$(nproc 2>/dev/null || echo 2)
+    WORKERS=$((CPU_CORES * 2 + 1))
+    [ "$WORKERS" -lt 2 ] && WORKERS=2
+    [ "$WORKERS" -gt 8 ] && WORKERS=8
+    echo "WORKERS not set, using dynamic value: $WORKERS (based on $CPU_CORES CPU cores)"
+fi
+export WORKERS
+
 # Start supervisord
 echo "Starting application services..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
