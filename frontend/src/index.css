@@ -10,7 +10,10 @@
   }
 
   body {
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family:
+      'Inter',
+      -apple-system,
+      sans-serif;
     background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1c 50%, #0d0d0f 100%);
     color: #ffffff;
     min-height: 100vh;
@@ -38,7 +41,8 @@
 
 @layer utilities {
   @keyframes pulse-glow {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
     }
     50% {
@@ -47,7 +51,8 @@
   }
 
   @keyframes glow {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 20px rgba(255, 59, 48, 0.3);
     }
     50% {

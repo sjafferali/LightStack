@@ -17,11 +17,13 @@ _engine_kwargs: dict[str, object] = {
 
 # Pool settings only apply to connection-pooled databases (not SQLite)
 if settings.DATABASE_TYPE == "postgresql":
-    _engine_kwargs.update({
-        "pool_pre_ping": True,
-        "pool_size": 5,
-        "max_overflow": 10,
-    })
+    _engine_kwargs.update(
+        {
+            "pool_pre_ping": True,
+            "pool_size": 5,
+            "max_overflow": 10,
+        }
+    )
 
 engine = create_async_engine(settings.database_url_async, **_engine_kwargs)
 
@@ -33,6 +35,7 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
 
 # Create base class for models
 class Base(DeclarativeBase):

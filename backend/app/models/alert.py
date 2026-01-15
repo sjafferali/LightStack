@@ -27,9 +27,7 @@ class AlertConfig(Base, TimestampMixin):
     __tablename__ = "alert_configs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    alert_key: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True
-    )
+    alert_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     default_priority: Mapped[int] = mapped_column(

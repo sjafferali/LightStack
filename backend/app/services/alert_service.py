@@ -23,9 +23,7 @@ class AlertService:
 
     async def get_all_configs(self) -> list[AlertConfig]:
         """Get all alert configurations."""
-        result = await self.db.execute(
-            select(AlertConfig).order_by(AlertConfig.alert_key)
-        )
+        result = await self.db.execute(select(AlertConfig).order_by(AlertConfig.alert_key))
         return list(result.scalars().all())
 
     async def get_config_by_key(self, alert_key: str) -> AlertConfig | None:
@@ -58,9 +56,7 @@ class AlertService:
         await self.db.refresh(config)
         return config
 
-    async def update_config(
-        self, alert_key: str, **kwargs: object
-    ) -> AlertConfig | None:
+    async def update_config(self, alert_key: str, **kwargs: object) -> AlertConfig | None:
         """Update an existing alert configuration."""
         config = await self.get_config_by_key(alert_key)
         if not config:
@@ -84,16 +80,12 @@ class AlertService:
         await self.db.commit()
         return True
 
-    async def get_or_create_config(
-        self, alert_key: str, default_priority: int = 3
-    ) -> AlertConfig:
+    async def get_or_create_config(self, alert_key: str, default_priority: int = 3) -> AlertConfig:
         """Get existing config or create a new one with defaults."""
         config = await self.get_config_by_key(alert_key)
         if config:
             return config
-        return await self.create_config(
-            alert_key=alert_key, default_priority=default_priority
-        )
+        return await self.create_config(alert_key=alert_key, default_priority=default_priority)
 
     # =========================================================================
     # Alert State Operations
@@ -119,9 +111,7 @@ class AlertService:
         # Sort by effective priority (lower number = higher priority)
         return sorted(alerts, key=lambda a: a.effective_priority)
 
-    async def get_alert_by_key(
-        self, alert_key: str, include_config: bool = True
-    ) -> Alert | None:
+    async def get_alert_by_key(self, alert_key: str, include_config: bool = True) -> Alert | None:
         """Get a specific alert by key."""
         query = select(Alert).where(Alert.alert_key == alert_key)
         if include_config:
@@ -178,9 +168,7 @@ class AlertService:
         # Re-fetch with config eagerly loaded to avoid lazy loading issues
         return await self.get_alert_by_key(alert_key, include_config=True)  # type: ignore[return-value]
 
-    async def clear_alert(
-        self, alert_key: str, note: str | None = None
-    ) -> Alert | None:
+    async def clear_alert(self, alert_key: str, note: str | None = None) -> Alert | None:
         """Clear an alert. Returns None if alert doesn't exist."""
         alert = await self.get_alert_by_key(alert_key)
         if not alert:
@@ -345,9 +333,7 @@ class AlertService:
         active_count = active_result.scalar() or 0
 
         # Total alert keys
-        total_keys_result = await self.db.execute(
-            select(func.count(AlertConfig.id))
-        )
+        total_keys_result = await self.db.execute(select(func.count(AlertConfig.id)))
         total_keys = total_keys_result.scalar() or 0
 
         return {

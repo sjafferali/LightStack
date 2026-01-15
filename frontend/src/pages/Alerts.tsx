@@ -1,90 +1,97 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { Card, Button, PriorityBadge, StatusIndicator, Modal } from '../components/ui';
-import { alertsApi, alertConfigsApi } from '../services/api';
-import { AlertConfig, AlertConfigUpdate, PRIORITY_CONFIG } from '../types/alert';
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { Card, Button, PriorityBadge, StatusIndicator, Modal } from '../components/ui'
+import { alertsApi, alertConfigsApi } from '../services/api'
+import { AlertConfig, AlertConfigUpdate, PRIORITY_CONFIG } from '../types/alert'
 
 function formatDate(timestamp: string | null): string {
-  if (!timestamp) return 'Never';
-  const date = new Date(timestamp);
+  if (!timestamp) return 'Never'
+  const date = new Date(timestamp)
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  });
+  })
 }
 
 export function Alerts() {
-  const queryClient = useQueryClient();
-  const [configAlert, setConfigAlert] = useState<AlertConfig | null>(null);
-  const [triggerModal, setTriggerModal] = useState(false);
-  const [newAlertKey, setNewAlertKey] = useState('');
-  const [newAlertPriority, setNewAlertPriority] = useState<number | null>(null);
-  const [newAlertNote, setNewAlertNote] = useState('');
-  const [editPriority, setEditPriority] = useState<number>(3);
+  const queryClient = useQueryClient()
+  const [configAlert, setConfigAlert] = useState<AlertConfig | null>(null)
+  const [triggerModal, setTriggerModal] = useState(false)
+  const [newAlertKey, setNewAlertKey] = useState('')
+  const [newAlertPriority, setNewAlertPriority] = useState<number | null>(null)
+  const [newAlertNote, setNewAlertNote] = useState('')
+  const [editPriority, setEditPriority] = useState<number>(3)
 
   // Queries
   const { data: summary = [], isLoading } = useQuery({
     queryKey: ['alert-configs', 'summary'],
     queryFn: alertConfigsApi.getSummary,
-  });
+  })
 
   // Mutations
   const triggerMutation = useMutation({
-    mutationFn: ({ alertKey, priority, note }: { alertKey: string; priority?: number; note?: string }) =>
-      alertsApi.trigger(alertKey, { priority, note }),
+    mutationFn: ({
+      alertKey,
+      priority,
+      note,
+    }: {
+      alertKey: string
+      priority?: number
+      note?: string
+    }) => alertsApi.trigger(alertKey, { priority, note }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alerts'] });
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      toast.success('Alert triggered');
-      setTriggerModal(false);
-      setNewAlertKey('');
-      setNewAlertPriority(null);
-      setNewAlertNote('');
+      queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
+      toast.success('Alert triggered')
+      setTriggerModal(false)
+      setNewAlertKey('')
+      setNewAlertPriority(null)
+      setNewAlertNote('')
     },
     onError: () => toast.error('Failed to trigger alert'),
-  });
+  })
 
   const clearMutation = useMutation({
     mutationFn: (alertKey: string) => alertsApi.clear(alertKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alerts'] });
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      toast.success('Alert cleared');
+      queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
+      toast.success('Alert cleared')
     },
     onError: () => toast.error('Failed to clear alert'),
-  });
+  })
 
   const updateConfigMutation = useMutation({
     mutationFn: ({ alertKey, config }: { alertKey: string; config: AlertConfigUpdate }) =>
       alertConfigsApi.update(alertKey, config),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] });
-      toast.success('Configuration updated');
-      setConfigAlert(null);
+      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
+      toast.success('Configuration updated')
+      setConfigAlert(null)
     },
     onError: () => toast.error('Failed to update configuration'),
-  });
+  })
 
   const deleteConfigMutation = useMutation({
     mutationFn: (alertKey: string) => alertConfigsApi.delete(alertKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] });
-      queryClient.invalidateQueries({ queryKey: ['alerts'] });
-      toast.success('Alert deleted');
-      setConfigAlert(null);
+      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
+      queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      toast.success('Alert deleted')
+      setConfigAlert(null)
     },
     onError: () => toast.error('Failed to delete alert'),
-  });
+  })
 
   const handleOpenConfig = (alert: AlertConfig) => {
-    setConfigAlert(alert);
-    setEditPriority(alert.default_priority);
-  };
+    setConfigAlert(alert)
+    setEditPriority(alert.default_priority)
+  }
 
   return (
     <div>
@@ -104,16 +111,21 @@ export function Alerts() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-[#2c2c2e]">
-              {['Status', 'Alert Key', 'Default Priority', 'Last Triggered', 'Total Triggers', 'Actions'].map(
-                (header) => (
-                  <th
-                    key={header}
-                    className="border-b border-[#3a3a3c] px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93]"
-                  >
-                    {header}
-                  </th>
-                )
-              )}
+              {[
+                'Status',
+                'Alert Key',
+                'Default Priority',
+                'Last Triggered',
+                'Total Triggers',
+                'Actions',
+              ].map((header) => (
+                <th
+                  key={header}
+                  className="border-b border-[#3a3a3c] px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93]"
+                >
+                  {header}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -141,7 +153,7 @@ export function Alerts() {
                     <StatusIndicator active={alert.is_active} />
                   </td>
                   <td className="px-5 py-4">
-                    <span className="font-medium font-mono">{alert.alert_key}</span>
+                    <span className="font-mono font-medium">{alert.alert_key}</span>
                   </td>
                   <td className="px-5 py-4">
                     <PriorityBadge priority={alert.default_priority} size="small" />
@@ -149,7 +161,7 @@ export function Alerts() {
                   <td className="px-5 py-4 text-[13px] text-[#8e8e93]">
                     {formatDate(alert.last_triggered_at)}
                   </td>
-                  <td className="px-5 py-4 font-semibold font-mono">{alert.trigger_count}</td>
+                  <td className="px-5 py-4 font-mono font-semibold">{alert.trigger_count}</td>
                   <td className="px-5 py-4">
                     <div className="flex gap-2">
                       <Button
@@ -213,7 +225,7 @@ export function Alerts() {
                 {[1, 2, 3, 4, 5].map((p) => (
                   <button
                     key={p}
-                    className={`flex-1 cursor-pointer rounded-lg border-2 p-3 font-bold transition-all font-mono ${
+                    className={`flex-1 cursor-pointer rounded-lg border-2 p-3 font-mono font-bold transition-all ${
                       editPriority === p
                         ? `border-[${PRIORITY_CONFIG[p].color}]`
                         : 'border-[#3a3a3c]'
@@ -272,7 +284,7 @@ export function Alerts() {
               placeholder="e.g., garage_door_open"
               value={newAlertKey}
               onChange={(e) => setNewAlertKey(e.target.value)}
-              className="w-full rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 text-sm text-white font-mono focus:border-[#0a84ff] focus:outline-none"
+              className="w-full rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 font-mono text-sm text-white focus:border-[#0a84ff] focus:outline-none"
             />
             <p className="m-0 mt-2 text-xs text-[#8e8e93]">
               New keys will be automatically registered
@@ -280,7 +292,9 @@ export function Alerts() {
           </div>
 
           <div>
-            <label className="mb-2 block text-[13px] font-semibold">Priority Override (optional)</label>
+            <label className="mb-2 block text-[13px] font-semibold">
+              Priority Override (optional)
+            </label>
             <div className="flex gap-2">
               <button
                 className={`flex-1 cursor-pointer rounded-lg border-2 p-2.5 text-xs font-semibold ${
@@ -295,7 +309,7 @@ export function Alerts() {
               {[1, 2, 3, 4, 5].map((p) => (
                 <button
                   key={p}
-                  className={`cursor-pointer rounded-lg border-2 px-3.5 py-2.5 font-bold font-mono ${
+                  className={`cursor-pointer rounded-lg border-2 px-3.5 py-2.5 font-mono font-bold ${
                     newAlertPriority === p ? 'border-current' : 'border-[#3a3a3c]'
                   } bg-[#2c2c2e]`}
                   style={{ color: PRIORITY_CONFIG[p].color }}
@@ -339,5 +353,5 @@ export function Alerts() {
         </div>
       </Modal>
     </div>
-  );
+  )
 }

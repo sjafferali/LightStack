@@ -38,10 +38,10 @@ const priorityConfig = {
 
 const PriorityBadge = ({ priority, size = 'normal' }) => {
   const config = priorityConfig[priority];
-  const sizeStyles = size === 'small' 
+  const sizeStyles = size === 'small'
     ? { padding: '2px 8px', fontSize: '10px' }
     : { padding: '4px 12px', fontSize: '11px' };
-  
+
   return (
     <span style={{
       ...sizeStyles,
@@ -83,11 +83,11 @@ const Button = ({ children, variant = 'default', size = 'normal', onClick, style
     alignItems: 'center',
     gap: '6px',
   };
-  
+
   const sizeStyles = size === 'small'
     ? { padding: '6px 12px', fontSize: '11px' }
     : { padding: '10px 18px', fontSize: '12px' };
-  
+
   const variantStyles = {
     default: { background: '#2c2c2e', color: '#fff', border: '1px solid #3a3a3c' },
     primary: { background: '#0a84ff', color: '#fff' },
@@ -95,7 +95,7 @@ const Button = ({ children, variant = 'default', size = 'normal', onClick, style
     success: { background: 'rgba(52, 199, 89, 0.2)', color: '#34c759', border: '1px solid rgba(52, 199, 89, 0.3)' },
     ghost: { background: 'transparent', color: '#8e8e93', border: '1px solid transparent' },
   };
-  
+
   return (
     <button
       onClick={onClick}
@@ -123,7 +123,7 @@ const Card = ({ children, style = {}, glow = null }) => (
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
-  
+
   return (
     <div style={{
       position: 'fixed',
@@ -176,8 +176,8 @@ export default function LightStackDashboard() {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [configAlert, setConfigAlert] = useState(null);
   const [triggerModal, setTriggerModal] = useState(false);
-  
-  const currentDisplayed = mockActiveAlerts.length > 0 
+
+  const currentDisplayed = mockActiveAlerts.length > 0
     ? mockActiveAlerts.reduce((a, b) => a.priority < b.priority ? a : b)
     : null;
 
@@ -185,7 +185,7 @@ export default function LightStackDashboard() {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
-  
+
   const formatDate = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -200,34 +200,34 @@ export default function LightStackDashboard() {
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-        
+
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
-        
+
         @keyframes glow {
           0%, 100% { box-shadow: 0 0 20px rgba(255, 59, 48, 0.3); }
           50% { box-shadow: 0 0 40px rgba(255, 59, 48, 0.6); }
         }
-        
+
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        
+
         @keyframes slideUp {
           from { transform: translateY(20px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
-        
+
         * { box-sizing: border-box; }
-        
+
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1c1c1e; }
         ::-webkit-scrollbar-thumb { background: #3a3a3c; border-radius: 4px; }
       `}</style>
-      
+
       {/* Header */}
       <header style={{
         background: 'rgba(28, 28, 30, 0.8)',
@@ -275,7 +275,7 @@ export default function LightStackDashboard() {
               }}>ALERT PRIORITY MANAGER</p>
             </div>
           </div>
-          
+
           <nav style={{ display: 'flex', gap: '8px' }}>
             {['dashboard', 'alerts', 'history'].map(tab => (
               <button
@@ -298,7 +298,7 @@ export default function LightStackDashboard() {
               </button>
             ))}
           </nav>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
               display: 'flex',
@@ -316,7 +316,7 @@ export default function LightStackDashboard() {
           </div>
         </div>
       </header>
-      
+
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px' }}>
         {activeTab === 'dashboard' && (
           <div style={{ display: 'grid', gap: '24px' }}>
@@ -359,7 +359,7 @@ export default function LightStackDashboard() {
                   width: '80px',
                   height: '80px',
                   borderRadius: '12px',
-                  background: currentDisplayed 
+                  background: currentDisplayed
                     ? `linear-gradient(135deg, ${priorityConfig[currentDisplayed.priority].color}40 0%, ${priorityConfig[currentDisplayed.priority].color}10 100%)`
                     : 'linear-gradient(135deg, #34c75940 0%, #34c75910 100%)',
                   display: 'flex',
@@ -372,7 +372,7 @@ export default function LightStackDashboard() {
                 </div>
               </div>
             </Card>
-            
+
             {/* Active Alerts */}
             <div>
               <div style={{
@@ -396,7 +396,7 @@ export default function LightStackDashboard() {
                 </h2>
                 <Button variant="danger" size="small">Clear All</Button>
               </div>
-              
+
               {mockActiveAlerts.length === 0 ? (
                 <Card style={{ textAlign: 'center', padding: '48px' }}>
                   <p style={{ color: '#8e8e93', fontSize: '14px' }}>No active alerts</p>
@@ -404,7 +404,7 @@ export default function LightStackDashboard() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {mockActiveAlerts.map((alert, idx) => (
-                    <Card 
+                    <Card
                       key={alert.alert_key}
                       style={{
                         display: 'grid',
@@ -468,7 +468,7 @@ export default function LightStackDashboard() {
                 </div>
               )}
             </div>
-            
+
             {/* Quick Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
               {[
@@ -497,7 +497,7 @@ export default function LightStackDashboard() {
             </div>
           </div>
         )}
-        
+
         {activeTab === 'alerts' && (
           <div>
             <div style={{
@@ -516,7 +516,7 @@ export default function LightStackDashboard() {
                 + Trigger Alert
               </Button>
             </div>
-            
+
             <Card style={{ padding: 0, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -539,7 +539,7 @@ export default function LightStackDashboard() {
                   {mockAllAlerts.map((alert, idx) => {
                     const isActive = mockActiveAlerts.some(a => a.alert_key === alert.alert_key);
                     return (
-                      <tr 
+                      <tr
                         key={alert.alert_key}
                         style={{
                           borderBottom: idx < mockAllAlerts.length - 1 ? '1px solid #2c2c2e' : 'none',
@@ -589,7 +589,7 @@ export default function LightStackDashboard() {
             </Card>
           </div>
         )}
-        
+
         {activeTab === 'history' && (
           <div>
             <div style={{ marginBottom: '24px' }}>
@@ -598,7 +598,7 @@ export default function LightStackDashboard() {
                 Complete log of all alert triggers and clears
               </p>
             </div>
-            
+
             <Card style={{ padding: 0, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -619,7 +619,7 @@ export default function LightStackDashboard() {
                 </thead>
                 <tbody>
                   {mockHistory.map((entry, idx) => (
-                    <tr 
+                    <tr
                       key={idx}
                       style={{ borderBottom: idx < mockHistory.length - 1 ? '1px solid #2c2c2e' : 'none' }}
                     >
@@ -659,7 +659,7 @@ export default function LightStackDashboard() {
           </div>
         )}
       </main>
-      
+
       {/* Alert Details Modal */}
       <Modal
         isOpen={!!selectedAlert}
@@ -680,7 +680,7 @@ export default function LightStackDashboard() {
                 fontFamily: "'JetBrains Mono', monospace",
               }}>ACTIVE</span>
             </div>
-            
+
             <div style={{
               background: '#2c2c2e',
               borderRadius: '8px',
@@ -695,7 +695,7 @@ export default function LightStackDashboard() {
               }}>Current Note</p>
               <p style={{ margin: 0, fontSize: '14px' }}>{selectedAlert.note}</p>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div style={{
                 background: '#2c2c2e',
@@ -732,7 +732,7 @@ export default function LightStackDashboard() {
                 }}>47 minutes</p>
               </div>
             </div>
-            
+
             <div>
               <p style={{
                 margin: '0 0 12px 0',
@@ -770,7 +770,7 @@ export default function LightStackDashboard() {
                 ))}
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <Button variant="default" onClick={() => setSelectedAlert(null)}>Close</Button>
               <Button variant="danger">Clear Alert</Button>
@@ -778,7 +778,7 @@ export default function LightStackDashboard() {
           </div>
         )}
       </Modal>
-      
+
       {/* Configure Alert Modal */}
       <Modal
         isOpen={!!configAlert}
@@ -802,8 +802,8 @@ export default function LightStackDashboard() {
                       flex: 1,
                       padding: '12px',
                       background: configAlert.default_priority === p ? priorityConfig[p].bg : '#2c2c2e',
-                      border: configAlert.default_priority === p 
-                        ? `2px solid ${priorityConfig[p].color}` 
+                      border: configAlert.default_priority === p
+                        ? `2px solid ${priorityConfig[p].color}`
                         : '2px solid #3a3a3c',
                       borderRadius: '8px',
                       color: priorityConfig[p].color,
@@ -821,7 +821,7 @@ export default function LightStackDashboard() {
                 ))}
               </div>
             </div>
-            
+
             <div>
               <label style={{
                 display: 'block',
@@ -856,7 +856,7 @@ export default function LightStackDashboard() {
                 }}>×</button>
               </div>
             </div>
-            
+
             <div>
               <label style={{
                 display: 'block',
@@ -879,7 +879,7 @@ export default function LightStackDashboard() {
                 }}
               />
             </div>
-            
+
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', marginTop: '8px' }}>
               <Button variant="danger">Delete Alert Key</Button>
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -890,7 +890,7 @@ export default function LightStackDashboard() {
           </div>
         )}
       </Modal>
-      
+
       {/* Trigger Alert Modal */}
       <Modal
         isOpen={triggerModal}
@@ -925,7 +925,7 @@ export default function LightStackDashboard() {
               color: '#8e8e93',
             }}>New keys will be automatically registered</p>
           </div>
-          
+
           <div>
             <label style={{
               display: 'block',
@@ -962,7 +962,7 @@ export default function LightStackDashboard() {
               ))}
             </div>
           </div>
-          
+
           <div>
             <label style={{
               display: 'block',
@@ -986,7 +986,7 @@ export default function LightStackDashboard() {
               }}
             />
           </div>
-          
+
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
             <Button variant="default" onClick={() => setTriggerModal(false)}>Cancel</Button>
             <Button variant="primary">Trigger Alert</Button>

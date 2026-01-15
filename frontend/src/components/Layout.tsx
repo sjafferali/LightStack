@@ -1,31 +1,31 @@
-import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { StatusIndicator } from './ui';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { StatusIndicator } from './ui'
+import { useQuery } from '@tanstack/react-query'
+import axios from 'axios'
 
 interface LayoutProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
 export function Layout({ children }: LayoutProps) {
-  const location = useLocation();
-  const currentPath = location.pathname;
+  const location = useLocation()
+  const currentPath = location.pathname
 
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
-      const { data } = await axios.get('/api/health');
-      return data;
+      const { data } = await axios.get('/api/health')
+      return data
     },
     refetchInterval: 30000,
-  });
+  })
 
   const tabs = [
     { path: '/', label: 'dashboard' },
     { path: '/alerts', label: 'alerts' },
     { path: '/history', label: 'history' },
-  ];
+  ]
 
   return (
     <div className="min-h-screen">
@@ -38,7 +38,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div>
               <h1 className="m-0 text-[22px] font-bold tracking-tight">LightStack</h1>
-              <p className="m-0 text-[11px] tracking-wider text-[#8e8e93] font-mono">
+              <p className="m-0 font-mono text-[11px] tracking-wider text-[#8e8e93]">
                 ALERT PRIORITY MANAGER
               </p>
             </div>
@@ -47,7 +47,7 @@ export function Layout({ children }: LayoutProps) {
           <nav className="flex gap-2">
             {tabs.map((tab) => {
               const isActive =
-                tab.path === '/' ? currentPath === '/' : currentPath.startsWith(tab.path);
+                tab.path === '/' ? currentPath === '/' : currentPath.startsWith(tab.path)
               return (
                 <Link
                   key={tab.path}
@@ -60,12 +60,12 @@ export function Layout({ children }: LayoutProps) {
                 >
                   {tab.label}
                 </Link>
-              );
+              )
             })}
           </nav>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 rounded-lg bg-[#2c2c2e] px-4 py-2 text-xs font-mono">
+            <div className="flex items-center gap-2 rounded-lg bg-[#2c2c2e] px-4 py-2 font-mono text-xs">
               <StatusIndicator active={!!health?.status} />
               <span className="text-[#8e8e93]">
                 {health?.status ? 'HA Connected' : 'Connecting...'}
@@ -77,5 +77,5 @@ export function Layout({ children }: LayoutProps) {
 
       <main className="mx-auto max-w-[1400px] p-8">{children}</main>
     </div>
-  );
+  )
 }

@@ -37,18 +37,20 @@ async def list_alert_configs(
     result = []
     for config in configs:
         trigger_count = await service.get_trigger_count(config.alert_key)
-        result.append(AlertConfigResponse(
-            id=config.id,
-            alert_key=config.alert_key,
-            name=config.name,
-            description=config.description,
-            default_priority=config.default_priority,
-            led_color=config.led_color,
-            led_effect=config.led_effect,
-            created_at=config.created_at,
-            updated_at=config.updated_at,
-            trigger_count=trigger_count,
-        ))
+        result.append(
+            AlertConfigResponse(
+                id=config.id,
+                alert_key=config.alert_key,
+                name=config.name,
+                description=config.description,
+                default_priority=config.default_priority,
+                led_color=config.led_color,
+                led_effect=config.led_effect,
+                created_at=config.created_at,
+                updated_at=config.updated_at,
+                trigger_count=trigger_count,
+            )
+        )
 
     return result
 

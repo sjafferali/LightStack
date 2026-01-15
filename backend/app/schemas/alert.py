@@ -30,9 +30,7 @@ class AlertConfigBase(BaseModel):
 class AlertConfigCreate(AlertConfigBase):
     """Schema for creating a new alert configuration."""
 
-    alert_key: str = Field(
-        ..., min_length=1, max_length=100, description="Unique alert identifier"
-    )
+    alert_key: str = Field(..., min_length=1, max_length=100, description="Unique alert identifier")
 
 
 class AlertConfigUpdate(BaseModel):
@@ -52,7 +50,9 @@ class AlertConfigResponse(AlertConfigBase):
     alert_key: str
     created_at: datetime
     updated_at: datetime
-    trigger_count: int = Field(default=0, description="Total number of times this alert has been triggered")
+    trigger_count: int = Field(
+        default=0, description="Total number of times this alert has been triggered"
+    )
 
     model_config = {"from_attributes": True}
 
@@ -92,7 +92,9 @@ class AlertTriggerRequest(BaseModel):
 class AlertClearRequest(BaseModel):
     """Schema for clearing an alert."""
 
-    note: str | None = Field(None, max_length=1000, description="Optional note for this clear action")
+    note: str | None = Field(
+        None, max_length=1000, description="Optional note for this clear action"
+    )
 
 
 class CurrentDisplayResponse(BaseModel):
