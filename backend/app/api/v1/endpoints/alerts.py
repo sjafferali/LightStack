@@ -3,6 +3,9 @@ Alert state and trigger/clear endpoints.
 
 These endpoints manage the current state of alerts and provide
 the trigger/clear functionality for Home Assistant integration.
+
+All state-changing operations (trigger, clear) broadcast events
+to connected WebSocket clients for real-time updates.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -19,6 +22,7 @@ from app.schemas.alert import (
     CurrentDisplayResponse,
 )
 from app.services.alert_service import AlertService
+from app.services.alert_service_ws import AlertServiceWithBroadcast
 
 router = APIRouter()
 
@@ -167,11 +171,16 @@ async def trigger_alert(
     If the alert_key doesn't exist, it will be automatically created
     with default settings (priority 3).
 
+    This operation broadcasts to connected WebSocket clients:
+    - `alert_triggered`: Always sent with alert details
+    - `current_alert_changed`: Sent if the highest priority alert changed
+
     Args:
         alert_key: The unique identifier for this alert
         trigger_data: Optional priority override and note
     """
-    service = AlertService(db)
+    # Use AlertServiceWithBroadcast to broadcast WebSocket events
+    service = AlertServiceWithBroadcast(db)
 
     priority = None
     note = None
@@ -203,8 +212,13 @@ async def clear_alert(
 
     After clearing, the system will automatically display the next
     highest priority active alert (if any).
+
+    This operation broadcasts to connected WebSocket clients:
+    - `alert_cleared`: Always sent with alert details
+    - `current_alert_changed`: Sent if the highest priority alert changed
     """
-    service = AlertService(db)
+    # Use AlertServiceWithBroadcast to broadcast WebSocket events
+    service = AlertServiceWithBroadcast(db)
 
     note = clear_data.note if clear_data else None
     alert = await service.clear_alert(alert_key=alert_key, note=note)
@@ -229,8 +243,13 @@ async def clear_all_alerts(
 
     This is useful for resetting the system or when acknowledging
     multiple alerts at once.
+
+    This operation broadcasts to connected WebSocket clients:
+    - `all_alerts_cleared`: Always sent with list of cleared alert keys
+    - `current_alert_changed`: Sent if there was an active current alert
     """
-    service = AlertService(db)
+    # Use AlertServiceWithBroadcast to broadcast WebSocket events
+    service = AlertServiceWithBroadcast(db)
     note = clear_data.note if clear_data else "Bulk clear"
     cleared_keys = await service.clear_all_alerts(note=note)
 

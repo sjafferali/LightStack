@@ -4,7 +4,7 @@ API v1 main router.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import alert_configs, alerts, history, stats
+from app.api.v1.endpoints import alert_configs, alerts, history, stats, websocket
 
 # Create main API router
 api_router = APIRouter()
@@ -29,6 +29,11 @@ api_router.include_router(
     stats.router,
     prefix="/stats",
     tags=["stats"],
+)
+api_router.include_router(
+    websocket.router,
+    prefix="/ws",
+    tags=["websocket"],
 )
 
 
