@@ -1,8 +1,37 @@
-# Python Web App Template
+# LightStack
 
-A production-ready template for building modern web applications with Python (FastAPI) backend and React (Vite) frontend, all containerized with Docker.
+A priority-based alert management system for Home Assistant, designed specifically for Inovelli light switches with notification LEDs.
 
-## Features
+## The Problem
+
+Inovelli switches feature an LED notification bar that can display different colors and effects—perfect for home automation alerts. However, when using these LEDs with Home Assistant to indicate multiple alerts, managing concurrent notifications becomes problematic:
+
+1. **Lost Alerts**: With multiple active alerts, only one LED state can be displayed at a time, causing others to be "lost" visually
+2. **Incorrect State on Clear**: When one alert clears, the LED resets to "all clear" even if other alerts are still active
+
+**Example Timeline:**
+```
+alert 1 fires → switch displays alert 1
+alert 2 fires → switch displays alert 2
+alert 2 clears → switch shows "all clear" ❌ (alert 1 is still active!)
+```
+
+## The Solution
+
+LightStack acts as a centralized alert state manager that:
+
+- **Tracks all active alerts** - Maintains state for all alerts, not just the currently displayed one
+- **Priority-based display** - Configurable priority levels ensure the most important alert is always shown
+- **Proper state management** - When an alert clears, the next highest-priority active alert is displayed instead of "all clear"
+
+**With LightStack:**
+```
+alert 1 fires → switch displays alert 1
+alert 2 fires → switch displays alert 2 (if higher priority)
+alert 2 clears → switch displays alert 1 ✓ (correctly shows remaining alert)
+```
+
+## Tech Stack
 
 ### Backend (Python/FastAPI)
 - **FastAPI** framework with async support
@@ -51,8 +80,8 @@ A production-ready template for building modern web applications with Python (Fa
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/your-app-name.git
-cd your-app-name
+git clone https://github.com/sjafferali/LightStack.git
+cd LightStack
 ```
 
 2. Copy the environment file:
@@ -206,7 +235,7 @@ npm run build
 To enable CI/CD with GitHub Actions:
 
 1. **Set up repository variables** in GitHub Settings → Secrets and variables → Actions:
-   - `DOCKER_IMAGE_NAME`: Your Docker Hub image name (e.g., `yourusername/your-app-name`)
+   - `DOCKER_IMAGE_NAME`: Your Docker Hub image name (e.g., `sjafferali/lightstack`)
 
 2. **Set up secrets**:
    - `DOCKERHUB_USERNAME`: Your Docker Hub username
@@ -264,7 +293,7 @@ Migrations run automatically on container startup.
 Build the production image:
 
 ```bash
-docker build -t your-app-name:latest .
+docker build -t lightstack:latest .
 ```
 
 Run in production:
@@ -273,8 +302,8 @@ Run in production:
 docker run -d \
   -p 8080:8080 \
   --env-file .env \
-  --name your-app-name \
-  your-app-name:latest
+  --name lightstack \
+  lightstack:latest
 ```
 
 ### Using Docker Compose
@@ -315,8 +344,4 @@ The application provides health check endpoints:
 
 ## License
 
-MIT License - feel free to use this template for your projects!
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
+MIT License
