@@ -10,6 +10,8 @@ export interface AlertConfig {
   default_priority: number
   led_color: number | null
   led_effect: string | null
+  led_brightness: number | null
+  led_duration: number | null
   created_at: string
   updated_at: string
   trigger_count: number
@@ -64,6 +66,10 @@ export interface AlertKeySummary {
   is_active: boolean
   last_triggered_at: string | null
   trigger_count: number
+  led_color: number | null
+  led_effect: string | null
+  led_brightness: number | null
+  led_duration: number | null
 }
 
 export interface BulkClearResponse {
@@ -83,6 +89,8 @@ export interface AlertConfigCreate {
   default_priority?: number
   led_color?: number
   led_effect?: string
+  led_brightness?: number
+  led_duration?: number
 }
 
 export interface AlertConfigUpdate {
@@ -91,6 +99,8 @@ export interface AlertConfigUpdate {
   default_priority?: number
   led_color?: number
   led_effect?: string
+  led_brightness?: number
+  led_duration?: number
 }
 
 // Priority configuration

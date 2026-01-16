@@ -2,21 +2,27 @@
 Pytest configuration and fixtures.
 """
 
-import asyncio
 from collections.abc import AsyncGenerator
 
-import pytest
 import pytest_asyncio
-from app.config import settings
-from app.core.database import Base, get_db
-from app.main import app
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# Override settings for testing
+# IMPORTANT: Override settings BEFORE importing any app modules
+# This ensures the database engine is created with test settings
+from app.config import settings
+
 settings.TESTING = True
 settings.DATABASE_TYPE = "sqlite"
 settings.SQLITE_DATABASE_PATH = ":memory:"
+
+# Now import app modules (after settings are configured)
+from app.core.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 # Create test engine
 test_engine = create_async_engine(
@@ -35,12 +41,10 @@ TestSessionLocal = async_sessionmaker(
 )
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# NOTE: The deprecated session-scoped event_loop fixture has been removed.
+# pytest-asyncio >= 0.23 manages event loops automatically via asyncio_mode = "auto"
+# and asyncio_default_fixture_loop_scope = "function" in pyproject.toml.
+# The old fixture caused conflicts with TestClient's internal event loop.
 
 
 @pytest_asyncio.fixture

@@ -4,13 +4,77 @@ This guide explains how to integrate LightStack with Home Assistant to manage In
 
 ## Overview
 
-LightStack is designed to work with Home Assistant's REST integrations. You can:
+LightStack integrates with Home Assistant in two ways:
 
-1. **Trigger alerts** when Home Assistant automations detect conditions
-2. **Clear alerts** when conditions resolve
-3. **Display LED notifications** on Inovelli switches based on active alerts
+1. **HACS Integration (Recommended)** - Native Home Assistant integration with real-time WebSocket updates
+2. **REST Integration** - Manual configuration using REST commands and sensors
 
-## Prerequisites
+## HACS Integration (Recommended)
+
+The official LightStack Home Assistant integration provides:
+
+- **Real-time updates** via WebSocket (no polling)
+- **Automatic entity creation** (sensors, binary sensors, buttons)
+- **Built-in services** for triggering and clearing alerts
+- **Full LED effect support** including brightness and duration
+
+### Installation via HACS
+
+1. Open HACS in Home Assistant
+2. Click "Integrations"
+3. Click the three dots menu → "Custom repositories"
+4. Add `https://github.com/sjafferali/lightstack-homeassistant` as an Integration
+5. Search for "LightStack" and install
+6. Restart Home Assistant
+7. Go to Settings → Devices & Services → Add Integration → LightStack
+8. Enter your LightStack server host and port
+
+### Entities Created
+
+The integration creates the following entities:
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| `sensor.lightstack_current_alert` | Sensor | Current highest-priority alert |
+| `binary_sensor.lightstack_alert_active` | Binary Sensor | On when any alert is active |
+| `button.lightstack_clear_all_alerts` | Button | Clears all active alerts |
+
+### Sensor Attributes
+
+The `sensor.lightstack_current_alert` sensor exposes these attributes:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `is_all_clear` | boolean | True if no alerts are active |
+| `active_count` | integer | Number of currently active alerts |
+| `alert_key` | string | Unique identifier of current alert |
+| `effective_priority` | integer | Priority level (1-5) |
+| `priority_name` | string | Priority name (Critical, High, etc.) |
+| `led_color` | integer | LED color value (0-255) |
+| `led_color_name` | string | LED color name (Red, Blue, etc.) |
+| `led_effect` | string | LED effect code (pulse, chase, etc.) |
+| `led_effect_name` | string | LED effect display name |
+| `led_brightness` | integer | LED brightness (0-100) |
+| `led_duration` | integer | LED duration value (encoded) |
+| `led_duration_name` | string | LED duration (e.g., "5 Minutes") |
+| `last_triggered` | datetime | When the alert was triggered |
+| `description` | string | Alert description |
+
+### Services
+
+The integration provides these services:
+
+- `lightstack.trigger_alert` - Trigger an alert
+- `lightstack.clear_alert` - Clear a specific alert
+- `lightstack.clear_all_alerts` - Clear all alerts
+
+---
+
+## REST Integration (Alternative)
+
+If you prefer manual configuration, you can use Home Assistant's REST integrations.
+
+### Prerequisites
 
 - LightStack running and accessible from Home Assistant
 - Inovelli Red, Blue, or White series switches with notification LED support
@@ -149,9 +213,39 @@ automation:
 
 ## Inovelli LED Integration
 
-### Update Switch LED Based on Current Alert
+### Update Switch LED Based on Current Alert (HACS Integration)
 
-Create an automation that updates your Inovelli switches when LightStack's current alert changes:
+Using the HACS integration with Zigbee2MQTT:
+
+```yaml
+automation:
+  - alias: "Update Inovelli LED from LightStack"
+    trigger:
+      - platform: state
+        entity_id: sensor.lightstack_current_alert
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "zigbee2mqtt/Office Switch/set"
+          payload_template: >
+            {% set sensor = states.sensor.lightstack_current_alert %}
+            {% if sensor.state == 'All Clear' %}
+              {"led_effect": {"effect": "off"}}
+            {% else %}
+              {
+                "led_effect": {
+                  "effect": "{{ sensor.attributes.led_effect | default('solid') }}",
+                  "color": {{ sensor.attributes.led_color | default(0) }},
+                  "level": {{ sensor.attributes.led_brightness | default(100) }},
+                  "duration": {{ sensor.attributes.led_duration | default(255) }}
+                }
+              }
+            {% endif %}
+```
+
+### Update Switch LED (REST Integration / Z-Wave)
+
+For Z-Wave switches using the REST integration:
 
 ```yaml
 automation:
@@ -187,9 +281,9 @@ automation:
                     {{ (color * 65536) + (effect * 256) + 255 }}
 ```
 
-### Inovelli LED Value Calculation
+### Inovelli LED Value Calculation (Z-Wave)
 
-The Inovelli notification parameter (16) uses a calculated value:
+The Inovelli Z-Wave notification parameter (16) uses a calculated value:
 
 ```
 Value = (Color * 65536) + (Effect * 256) + Duration
@@ -200,17 +294,53 @@ Where:
 - **Effect**: 0=Off, 1=Solid, 2=Fast Blink, 3=Slow Blink, 4=Pulse
 - **Duration**: 1-254 seconds, 255=indefinitely
 
-Common colors:
-| Color | Hue Value |
-|-------|-----------|
-| Red | 0 |
+### LED Colors
+
+| Color | Value |
+|-------|-------|
+| Off | 0 |
+| Red | 1 |
 | Orange | 21 |
 | Yellow | 42 |
 | Green | 85 |
 | Cyan | 127 |
+| Teal | 145 |
 | Blue | 170 |
-| Purple | 212 |
+| Purple | 195 |
+| Light Pink | 220 |
 | Pink | 234 |
+| White | 255 |
+
+### LED Effects (Zigbee/Zigbee2MQTT)
+
+The HACS integration provides these effect names for Zigbee switches:
+
+| Effect | Description |
+|--------|-------------|
+| `off` | LED off |
+| `solid` | Steady light |
+| `fast_blink` | Rapid blinking |
+| `slow_blink` | Slow blinking |
+| `pulse` | Breathing effect |
+| `chase` | Running light |
+| `aurora` | Color-shifting |
+| `slow_falling` | Slow falling |
+| `fast_falling` | Fast falling |
+| `slow_rising` | Slow rising |
+| `fast_rising` | Fast rising |
+| `slow_siren` | Slow siren |
+| `fast_siren` | Fast siren |
+
+### LED Duration Encoding
+
+LightStack uses encoded duration values:
+
+| Value Range | Unit | Example |
+|-------------|------|---------|
+| 1-60 | Seconds | 30 = 30 seconds |
+| 61-120 | Minutes | 65 = 5 minutes |
+| 121-254 | Hours | 132 = 12 hours |
+| 255 | Indefinite | Runs until cleared |
 
 ### Multiple Switch Updates
 

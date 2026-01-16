@@ -25,6 +25,15 @@ class AlertConfigBase(BaseModel):
     led_effect: str | None = Field(
         None, max_length=50, description="LED effect: solid, blink, pulse, chase, etc."
     )
+    led_brightness: int | None = Field(
+        None, ge=0, le=100, description="LED brightness level (0-100)"
+    )
+    led_duration: int | None = Field(
+        None,
+        ge=0,
+        le=255,
+        description="LED effect duration (1-60=seconds, 61-120=minutes, 121-254=hours, 255=indefinite)",
+    )
 
 
 class AlertConfigCreate(AlertConfigBase):
@@ -41,6 +50,8 @@ class AlertConfigUpdate(BaseModel):
     default_priority: int | None = Field(None, ge=1, le=5)
     led_color: int | None = Field(None, ge=0, le=255)
     led_effect: str | None = Field(None, max_length=50)
+    led_brightness: int | None = Field(None, ge=0, le=100)
+    led_duration: int | None = Field(None, ge=0, le=255)
 
 
 class AlertConfigResponse(AlertConfigBase):
@@ -168,5 +179,10 @@ class AlertKeyListResponse(BaseModel):
     is_active: bool
     last_triggered_at: datetime | None
     trigger_count: int
+    # LED effect settings
+    led_color: int | None = None
+    led_effect: str | None = None
+    led_brightness: int | None = None
+    led_duration: int | None = None
 
     model_config = {"from_attributes": True}

@@ -41,6 +41,14 @@ class AlertConfig(Base, TimestampMixin):
     led_effect: Mapped[str | None] = mapped_column(
         String(50), nullable=True, doc="LED effect: solid, blink, pulse, chase, etc."
     )
+    led_brightness: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, doc="LED brightness level (0-100)"
+    )
+    led_duration: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="LED effect duration (1-60=seconds, 61-120=minutes-60, 121-254=hours-120, 255=indefinite)",
+    )
 
     # Relationships
     alerts: Mapped[list["Alert"]] = relationship(

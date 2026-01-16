@@ -41,6 +41,8 @@ class AlertService:
         default_priority: int = 3,
         led_color: int | None = None,
         led_effect: str | None = None,
+        led_brightness: int | None = None,
+        led_duration: int | None = None,
     ) -> AlertConfig:
         """Create a new alert configuration."""
         config = AlertConfig(
@@ -50,6 +52,8 @@ class AlertService:
             default_priority=default_priority,
             led_color=led_color,
             led_effect=led_effect,
+            led_brightness=led_brightness,
+            led_duration=led_duration,
         )
         self.db.add(config)
         await self.db.commit()

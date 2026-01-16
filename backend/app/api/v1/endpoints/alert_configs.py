@@ -46,6 +46,8 @@ async def list_alert_configs(
                 default_priority=config.default_priority,
                 led_color=config.led_color,
                 led_effect=config.led_effect,
+                led_brightness=config.led_brightness,
+                led_duration=config.led_duration,
                 created_at=config.created_at,
                 updated_at=config.updated_at,
                 trigger_count=trigger_count,
@@ -75,6 +77,10 @@ async def list_alert_keys_summary(
             is_active=alert.is_active if alert else False,
             last_triggered_at=alert.last_triggered_at if alert else None,
             trigger_count=trigger_count,
+            led_color=config.led_color,
+            led_effect=config.led_effect,
+            led_brightness=config.led_brightness,
+            led_duration=config.led_duration,
         )
         for config, alert, trigger_count in summaries
     ]
@@ -106,6 +112,8 @@ async def get_alert_config(
         default_priority=config.default_priority,
         led_color=config.led_color,
         led_effect=config.led_effect,
+        led_brightness=config.led_brightness,
+        led_duration=config.led_duration,
         created_at=config.created_at,
         updated_at=config.updated_at,
         trigger_count=trigger_count,
@@ -139,6 +147,8 @@ async def create_alert_config(
         default_priority=config_data.default_priority,
         led_color=config_data.led_color,
         led_effect=config_data.led_effect,
+        led_brightness=config_data.led_brightness,
+        led_duration=config_data.led_duration,
     )
 
     return AlertConfigResponse(
@@ -149,6 +159,8 @@ async def create_alert_config(
         default_priority=config.default_priority,
         led_color=config.led_color,
         led_effect=config.led_effect,
+        led_brightness=config.led_brightness,
+        led_duration=config.led_duration,
         created_at=config.created_at,
         updated_at=config.updated_at,
         trigger_count=0,
@@ -188,6 +200,8 @@ async def update_alert_config(
         default_priority=config.default_priority,
         led_color=config.led_color,
         led_effect=config.led_effect,
+        led_brightness=config.led_brightness,
+        led_duration=config.led_duration,
         created_at=config.created_at,
         updated_at=config.updated_at,
         trigger_count=trigger_count,

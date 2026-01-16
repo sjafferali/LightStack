@@ -171,6 +171,8 @@ POST /api/v1/alert-configs
 | `default_priority` | integer | No | Priority 1-5 (default: 3) |
 | `led_color` | integer | No | Inovelli color 0-255 |
 | `led_effect` | string | No | LED effect name |
+| `led_brightness` | integer | No | LED brightness 0-100 |
+| `led_duration` | integer | No | LED duration (see encoding below) |
 
 ### Response
 
@@ -233,6 +235,8 @@ Only include fields you want to update:
 | `default_priority` | integer | Priority 1-5 |
 | `led_color` | integer | Inovelli color 0-255 |
 | `led_effect` | string | LED effect name |
+| `led_brightness` | integer | LED brightness 0-100 |
+| `led_duration` | integer | LED duration (see encoding below) |
 
 ### Response
 
@@ -298,6 +302,8 @@ curl -X DELETE http://localhost:8080/api/v1/alert-configs/old_alert
 | `default_priority` | integer | Default priority (1-5) |
 | `led_color` | integer/null | Inovelli LED color (0-255) |
 | `led_effect` | string/null | LED effect name |
+| `led_brightness` | integer/null | LED brightness (0-100) |
+| `led_duration` | integer/null | LED duration (see encoding below) |
 | `created_at` | datetime | Creation timestamp |
 | `updated_at` | datetime | Last update timestamp |
 | `trigger_count` | integer | Total trigger count |
@@ -306,31 +312,89 @@ curl -X DELETE http://localhost:8080/api/v1/alert-configs/old_alert
 
 ## LED Configuration
 
+LightStack stores LED effect parameters for Inovelli Blue series switches (VZM31-SN, VZM35-SN, etc.).
+
 ### LED Colors (Inovelli)
 
-Inovelli switches use a 0-255 color wheel:
+Inovelli switches use a 0-255 hue-based color wheel:
 
 | Value | Color |
 |-------|-------|
-| 0 | Red |
+| 0 | Off |
+| 1 | Red |
 | 21 | Orange |
 | 42 | Yellow |
 | 85 | Green |
 | 127 | Cyan |
+| 145 | Teal |
 | 170 | Blue |
-| 212 | Purple |
+| 195 | Purple |
+| 220 | Light Pink |
 | 234 | Pink |
+| 255 | White |
 
 ### LED Effects
 
-Common effect names:
+All available Inovelli LED effects:
 
-| Effect | Description |
-|--------|-------------|
-| `solid` | Steady light |
-| `blink` | On/off blinking |
-| `pulse` | Slow fade in/out |
-| `chase` | Moving light pattern |
-| `fast_blink` | Rapid blinking |
+| Effect Code | Display Name | Description |
+|-------------|--------------|-------------|
+| `off` | Off | LED off |
+| `solid` | Solid | Steady light |
+| `fast_blink` | Fast Blink | Rapid on/off blinking |
+| `slow_blink` | Slow Blink | Slow on/off blinking |
+| `pulse` | Pulse | Fade in/out breathing effect |
+| `chase` | Chase | Running light pattern |
+| `open_close` | Open/Close | Opening/closing animation |
+| `small_to_big` | Small to Big | Growing size animation |
+| `aurora` | Aurora | Color-shifting aurora effect |
+| `slow_falling` | Slow Falling | Slowly falling animation |
+| `medium_falling` | Medium Falling | Medium speed falling |
+| `fast_falling` | Fast Falling | Fast falling animation |
+| `slow_rising` | Slow Rising | Slowly rising animation |
+| `medium_rising` | Medium Rising | Medium speed rising |
+| `fast_rising` | Fast Rising | Fast rising animation |
+| `medium_blink` | Medium Blink | Medium speed blinking |
+| `slow_chase` | Slow Chase | Slow chase effect |
+| `fast_chase` | Fast Chase | Fast chase effect |
+| `fast_siren` | Fast Siren | Fast siren/alarm effect |
+| `slow_siren` | Slow Siren | Slow siren/alarm effect |
+| `clear_effect` | Clear Effect | Clear/remove current effect |
 
-> **Note**: Effect support depends on your specific Inovelli switch model and firmware version.
+### LED Brightness
+
+Brightness is specified as a percentage from 0-100:
+
+| Value | Description |
+|-------|-------------|
+| 0 | Off |
+| 50 | Half brightness |
+| 100 | Full brightness |
+
+### LED Duration
+
+Duration uses a special encoding to support seconds, minutes, and hours:
+
+| Value Range | Unit | Calculation |
+|-------------|------|-------------|
+| 1-60 | Seconds | Direct value (e.g., 30 = 30 seconds) |
+| 61-120 | Minutes | `value - 60` (e.g., 65 = 5 minutes) |
+| 121-254 | Hours | `value - 120` (e.g., 132 = 12 hours) |
+| 255 | Indefinite | Runs until cleared |
+
+**Common Duration Values:**
+
+| Value | Duration |
+|-------|----------|
+| 5 | 5 seconds |
+| 30 | 30 seconds |
+| 61 | 1 minute |
+| 65 | 5 minutes |
+| 75 | 15 minutes |
+| 90 | 30 minutes |
+| 121 | 1 hour |
+| 132 | 12 hours |
+| 144 | 24 hours |
+| 255 | Indefinitely |
+
+> **Note**: Effect support depends on your specific Inovelli switch model and firmware version. The Blue series (VZM31-SN, VZM35-SN) supports all effects listed above.
