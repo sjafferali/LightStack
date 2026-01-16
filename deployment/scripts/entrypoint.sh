@@ -61,14 +61,13 @@ fi
 echo "Applying database migrations..."
 alembic upgrade head || echo "Migration completed or no changes needed"
 
-# Set WORKERS dynamically if not provided
+# Set WORKERS - default to 1 for WebSocket state consistency
+# Multiple workers would each have their own ConnectionManager instance,
+# causing WebSocket broadcasts to fail (REST handlers can't see WS connections
+# in other workers). To scale beyond 1 worker, implement Redis pub/sub.
 if [ -z "$WORKERS" ]; then
-    # Calculate based on CPU cores: 2 * cores + 1, with min of 2 and max of 8
-    CPU_CORES=$(nproc 2>/dev/null || echo 2)
-    WORKERS=$((CPU_CORES * 2 + 1))
-    [ "$WORKERS" -lt 2 ] && WORKERS=2
-    [ "$WORKERS" -gt 8 ] && WORKERS=8
-    echo "WORKERS not set, using dynamic value: $WORKERS (based on $CPU_CORES CPU cores)"
+    WORKERS=1
+    echo "WORKERS not set, defaulting to 1 (required for WebSocket state sharing)"
 fi
 export WORKERS
 
