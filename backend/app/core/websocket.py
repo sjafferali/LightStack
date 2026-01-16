@@ -96,7 +96,14 @@ class ConnectionManager:
         Returns:
             Number of clients the message was successfully sent to
         """
+        logger.info(
+            "Broadcasting event '%s' to %d clients. Data keys: %s",
+            event_type,
+            len(self._active_connections),
+            list(data.keys()) if data else "None",
+        )
         if not self._active_connections:
+            logger.warning("No active connections for broadcast of '%s'", event_type)
             return 0
 
         message = {
