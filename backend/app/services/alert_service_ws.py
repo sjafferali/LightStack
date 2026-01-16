@@ -31,6 +31,8 @@ def _alert_to_data(alert: Alert) -> AlertData:
         default_priority=alert.config.default_priority if alert.config else 3,
         led_color=alert.config.led_color if alert.config else None,
         led_effect=alert.config.led_effect if alert.config else None,
+        led_brightness=alert.config.led_brightness if alert.config else None,
+        led_duration=alert.config.led_duration if alert.config else None,
     )
 
 

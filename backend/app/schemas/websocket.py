@@ -72,6 +72,8 @@ class AlertData(BaseModel):
     default_priority: int = 3
     led_color: int | None = None
     led_effect: str | None = None
+    led_brightness: int | None = None
+    led_duration: int | None = None
 
 
 class CurrentAlertState(BaseModel):
