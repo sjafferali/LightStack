@@ -8,7 +8,9 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.constants.inovelli import LedScope
 from app.models import Alert, AlertConfig, AlertHistory
+from app.services.led_plan import RenderPlan, build_plan, from_config, to_active_alert
 
 
 class AlertService:
@@ -39,6 +41,8 @@ class AlertService:
         name: str | None = None,
         description: str | None = None,
         default_priority: int = 3,
+        led_scope: str = LedScope.BAR.value,
+        led_positions: list[int] | None = None,
         led_color: int | None = None,
         led_effect: str | None = None,
         led_brightness: int | None = None,
@@ -50,6 +54,8 @@ class AlertService:
             name=name,
             description=description,
             default_priority=default_priority,
+            led_scope=led_scope,
+            led_positions=led_positions,
             led_color=led_color,
             led_effect=led_effect,
             led_brightness=led_brightness,
@@ -61,13 +67,19 @@ class AlertService:
         return config
 
     async def update_config(self, alert_key: str, **kwargs: object) -> AlertConfig | None:
-        """Update an existing alert configuration."""
+        """
+        Update an existing alert configuration.
+
+        Every supplied field is applied, including explicit nulls, so settings
+        such as led_positions can be cleared when an alert switches back to
+        whole-bar scope. Callers pass only the fields they intend to change.
+        """
         config = await self.get_config_by_key(alert_key)
         if not config:
             return None
 
         for key, value in kwargs.items():
-            if value is not None and hasattr(config, key):
+            if hasattr(config, key):
                 setattr(config, key, value)
 
         await self.db.commit()
@@ -127,6 +139,28 @@ class AlertService:
         """Get the currently displayed alert (highest priority active alert)."""
         active = await self.get_active_alerts()
         return active[0] if active else None
+
+    async def get_render_plan(self) -> RenderPlan:
+        """Compile the active alerts into the switch's LED display state."""
+        active = await self.get_active_alerts()
+        return build_plan([to_active_alert(a) for a in active if a.config is not None])
+
+    async def simulate_render_plan(self, alert_keys: list[str]) -> RenderPlan:
+        """
+        Compile the plan that the given alert keys would produce if all active.
+
+        Lets the UI preview arbitrary alert combinations without touching state.
+        """
+        configs = await self.get_all_configs()
+        by_key = {c.alert_key: c for c in configs}
+
+        simulated = [
+            from_config(by_key[key], by_key[key].default_priority)
+            for key in alert_keys
+            if key in by_key
+        ]
+
+        return build_plan(simulated)
 
     async def trigger_alert(
         self,

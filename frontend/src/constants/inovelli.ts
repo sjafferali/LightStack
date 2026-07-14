@@ -20,8 +20,8 @@ export const LED_COLORS = [
   { label: 'White', value: 255, hex: '#ffffff' },
 ] as const
 
-// LED Effect options with display name and effect code
-export const LED_EFFECTS = [
+// Effects the switch accepts for the whole LED bar.
+export const BAR_EFFECTS = [
   { label: 'Off', value: 'off', code: 0 },
   { label: 'Solid', value: 'solid', code: 1 },
   { label: 'Fast Blink', value: 'fast_blink', code: 2 },
@@ -44,6 +44,35 @@ export const LED_EFFECTS = [
   { label: 'Slow Siren', value: 'slow_siren', code: 19 },
   { label: 'Clear Effect', value: 'clear_effect', code: 255 },
 ] as const
+
+// Effects the switch accepts for a single LED. The animated bar-wide effects
+// have no per-LED equivalent, and falling/rising replace the speed variants.
+export const INDIVIDUAL_EFFECTS = [
+  { label: 'Off', value: 'off', code: 0 },
+  { label: 'Solid', value: 'solid', code: 1 },
+  { label: 'Fast Blink', value: 'fast_blink', code: 2 },
+  { label: 'Slow Blink', value: 'slow_blink', code: 3 },
+  { label: 'Pulse', value: 'pulse', code: 4 },
+  { label: 'Chase', value: 'chase', code: 5 },
+  { label: 'Falling', value: 'falling', code: 6 },
+  { label: 'Rising', value: 'rising', code: 7 },
+  { label: 'Aurora', value: 'aurora', code: 8 },
+  { label: 'Clear Effect', value: 'clear_effect', code: 255 },
+] as const
+
+export type LedScopeValue = 'bar' | 'individual'
+
+export function effectsForScope(scope: LedScopeValue) {
+  return scope === 'bar' ? BAR_EFFECTS : INDIVIDUAL_EFFECTS
+}
+
+export function isEffectValidForScope(effect: string | null, scope: LedScopeValue): boolean {
+  if (!effect) return true
+  return effectsForScope(scope).some((e) => e.value === effect)
+}
+
+// Every effect name, for resolving labels regardless of scope.
+export const LED_EFFECTS = BAR_EFFECTS
 
 // LED Duration options
 // Duration encoding:
@@ -94,7 +123,8 @@ export function getColorByValue(value: number | null | undefined) {
 // Helper function to get effect by value (string)
 export function getEffectByValue(value: string | null | undefined) {
   if (!value) return null
-  return LED_EFFECTS.find((e) => e.value === value) || null
+  const all = [...BAR_EFFECTS, ...INDIVIDUAL_EFFECTS]
+  return all.find((e) => e.value === value) || null
 }
 
 // Helper function to get duration by value

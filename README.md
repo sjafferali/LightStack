@@ -276,22 +276,54 @@ The server broadcasts these events to all connected clients:
 | 4 | Low | Green | Appliance notifications, reminders |
 | 5 | Info | Blue | Informational alerts, status updates |
 
+## LED Targeting
+
+The Inovelli Blue Series LED bar has seven LEDs, numbered 1 at the bottom to 7 at the
+top. Each LED holds its own effect in firmware, so several alerts can show at the same
+time on different LEDs.
+
+Each alert chooses where it shows:
+
+- **Whole bar** — the alert takes over all seven LEDs.
+- **Specific LEDs** — the alert lights any subset of LEDs 1-7 and shares the bar with
+  other alerts.
+
+### How LightStack decides what to show
+
+1. A whole-bar alert outranks every per-LED alert. If any bar alert is active, it is
+   shown and per-LED alerts are hidden — this is also what the hardware does, since a
+   whole-bar effect masks the individual LEDs beneath it.
+2. Among competing bar alerts, the highest priority one wins.
+3. With no bar alert active, every per-LED alert shows at once. Where two alerts claim
+   the same LED, the higher priority one wins that LED.
+4. Equal priorities are broken alphabetically by alert key, so the display is stable.
+
+Effects are never blended: each LED shows exactly one alert.
+
+Use the **Simulator** page to try combinations and see which alerts stay visible when
+they compete.
+
 ## LED Effects
 
-LightStack supports all Inovelli LED effects:
+A single LED accepts fewer effects than the whole bar. LightStack rejects a combination
+the switch cannot render, because Zigbee2MQTT discards an unsupported effect without
+reporting an error.
 
-| Effect | Description |
-|--------|-------------|
-| Solid | Continuous solid color |
-| Fast Blink | Rapid blinking |
-| Slow Blink | Slow blinking |
-| Pulse | Breathing/pulsing effect |
-| Chase | LED chase pattern |
-| Aurora | Aurora borealis effect |
-| Siren | Police siren effect (fast/slow) |
-| Rising/Falling | LEDs rise or fall (slow/medium/fast) |
-| Open/Close | Opening and closing pattern |
-| Small to Big | Expanding effect |
+| Effect | Whole bar | Single LED |
+|--------|:---------:|:----------:|
+| Solid | yes | yes |
+| Fast Blink / Slow Blink | yes | yes |
+| Medium Blink | yes | — |
+| Pulse | yes | yes |
+| Chase | yes | yes |
+| Slow Chase / Fast Chase | yes | — |
+| Aurora | yes | yes |
+| Falling / Rising | — | yes |
+| Slow/Medium/Fast Falling | yes | — |
+| Slow/Medium/Fast Rising | yes | — |
+| Fast Siren / Slow Siren | yes | — |
+| Open/Close | yes | — |
+| Small to Big | yes | — |
 
 ## Development
 

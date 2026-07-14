@@ -9,9 +9,10 @@ Tables:
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.constants.inovelli import ALL_LEDS, LedScope
 from app.core.database import Base
 from app.models.base import TimestampMixin
 
@@ -35,6 +36,17 @@ class AlertConfig(Base, TimestampMixin):
     )
 
     # Inovelli LED settings
+    led_scope: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=LedScope.BAR.value,
+        doc="Notification surface: 'bar' (whole strip) or 'individual' (specific LEDs)",
+    )
+    led_positions: Mapped[list[int] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        doc="LEDs (1-7, bottom to top) claimed when led_scope is 'individual'",
+    )
     led_color: Mapped[int | None] = mapped_column(
         Integer, nullable=True, doc="Inovelli color value (0-255)"
     )
@@ -57,6 +69,18 @@ class AlertConfig(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<AlertConfig(alert_key={self.alert_key!r}, priority={self.default_priority})>"
+
+    @property
+    def is_bar(self) -> bool:
+        """Report whether this alert renders across the whole LED bar."""
+        return self.led_scope == LedScope.BAR.value
+
+    @property
+    def claimed_leds(self) -> tuple[int, ...]:
+        """Return the LEDs this alert renders on, bottom to top."""
+        if self.is_bar:
+            return ALL_LEDS
+        return tuple(sorted(self.led_positions or ()))
 
 
 class Alert(Base, TimestampMixin):

@@ -5,10 +5,14 @@ These endpoints manage the default settings for each alert type,
 including priority levels and LED display settings for Inovelli switches.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants.inovelli import LedScope, effects_for_scope, is_valid_effect, validate_positions
 from app.core.database import get_db
+from app.models.alert import AlertConfig
 from app.schemas.alert import (
     AlertConfigCreate,
     AlertConfigResponse,
@@ -18,6 +22,67 @@ from app.schemas.alert import (
 from app.services.alert_service import AlertService
 
 router = APIRouter()
+
+
+def _config_response(config: AlertConfig, trigger_count: int = 0) -> AlertConfigResponse:
+    """Helper to build AlertConfigResponse from an AlertConfig model."""
+    return AlertConfigResponse(
+        id=config.id,
+        alert_key=config.alert_key,
+        name=config.name,
+        description=config.description,
+        default_priority=config.default_priority,
+        led_scope=LedScope(config.led_scope),
+        led_positions=config.led_positions,
+        led_color=config.led_color,
+        led_effect=config.led_effect,
+        led_brightness=config.led_brightness,
+        led_duration=config.led_duration,
+        created_at=config.created_at,
+        updated_at=config.updated_at,
+        trigger_count=trigger_count,
+    )
+
+
+def _validate_merged_led_settings(config: AlertConfig, update: dict[str, Any]) -> dict[str, Any]:
+    """
+    Validate a partial update against the LED settings it will produce.
+
+    A patch that changes only the effect, or only the scope, still has to agree
+    with the fields it leaves untouched: individual LEDs accept a narrower set
+    of effects than the bar, and Zigbee2MQTT discards an unsupported effect
+    without reporting an error.
+    """
+    scope = LedScope(update.get("led_scope", config.led_scope))
+    effect = update.get("led_effect", config.led_effect)
+    positions = update.get("led_positions", config.led_positions)
+
+    if scope is LedScope.INDIVIDUAL:
+        if not positions:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="led_positions is required when led_scope is 'individual'",
+            )
+        try:
+            update["led_positions"] = validate_positions(positions)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from exc
+    elif "led_scope" in update:
+        update["led_positions"] = None
+
+    if effect is not None and not is_valid_effect(effect, scope):
+        allowed = ", ".join(sorted(effects_for_scope(scope)))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"LED effect '{effect}' is not supported for led_scope '{scope.value}'. "
+                f"Supported effects: {allowed}"
+            ),
+        )
+
+    return update
 
 
 @router.get("", response_model=list[AlertConfigResponse])
@@ -33,26 +98,10 @@ async def list_alert_configs(
     service = AlertService(db)
     configs = await service.get_all_configs()
 
-    # Enrich with trigger counts
     result = []
     for config in configs:
         trigger_count = await service.get_trigger_count(config.alert_key)
-        result.append(
-            AlertConfigResponse(
-                id=config.id,
-                alert_key=config.alert_key,
-                name=config.name,
-                description=config.description,
-                default_priority=config.default_priority,
-                led_color=config.led_color,
-                led_effect=config.led_effect,
-                led_brightness=config.led_brightness,
-                led_duration=config.led_duration,
-                created_at=config.created_at,
-                updated_at=config.updated_at,
-                trigger_count=trigger_count,
-            )
-        )
+        result.append(_config_response(config, trigger_count))
 
     return result
 
@@ -77,6 +126,8 @@ async def list_alert_keys_summary(
             is_active=alert.is_active if alert else False,
             last_triggered_at=alert.last_triggered_at if alert else None,
             trigger_count=trigger_count,
+            led_scope=LedScope(config.led_scope),
+            led_positions=config.led_positions,
             led_color=config.led_color,
             led_effect=config.led_effect,
             led_brightness=config.led_brightness,
@@ -104,20 +155,7 @@ async def get_alert_config(
         )
 
     trigger_count = await service.get_trigger_count(alert_key)
-    return AlertConfigResponse(
-        id=config.id,
-        alert_key=config.alert_key,
-        name=config.name,
-        description=config.description,
-        default_priority=config.default_priority,
-        led_color=config.led_color,
-        led_effect=config.led_effect,
-        led_brightness=config.led_brightness,
-        led_duration=config.led_duration,
-        created_at=config.created_at,
-        updated_at=config.updated_at,
-        trigger_count=trigger_count,
-    )
+    return _config_response(config, trigger_count)
 
 
 @router.post("", response_model=AlertConfigResponse, status_code=status.HTTP_201_CREATED)
@@ -132,7 +170,6 @@ async def create_alert_config(
     """
     service = AlertService(db)
 
-    # Check if already exists
     existing = await service.get_config_by_key(config_data.alert_key)
     if existing:
         raise HTTPException(
@@ -145,26 +182,15 @@ async def create_alert_config(
         name=config_data.name,
         description=config_data.description,
         default_priority=config_data.default_priority,
+        led_scope=config_data.led_scope.value,
+        led_positions=config_data.led_positions,
         led_color=config_data.led_color,
         led_effect=config_data.led_effect,
         led_brightness=config_data.led_brightness,
         led_duration=config_data.led_duration,
     )
 
-    return AlertConfigResponse(
-        id=config.id,
-        alert_key=config.alert_key,
-        name=config.name,
-        description=config.description,
-        default_priority=config.default_priority,
-        led_color=config.led_color,
-        led_effect=config.led_effect,
-        led_brightness=config.led_brightness,
-        led_duration=config.led_duration,
-        created_at=config.created_at,
-        updated_at=config.updated_at,
-        trigger_count=0,
-    )
+    return _config_response(config, trigger_count=0)
 
 
 @router.put("/{alert_key}", response_model=AlertConfigResponse)
@@ -176,36 +202,27 @@ async def update_alert_config(
     """
     Update an existing alert configuration.
 
-    Only provided fields will be updated. Null fields are ignored.
+    Only the fields present in the request body are changed.
     """
     service = AlertService(db)
 
-    # Filter out None values
-    update_data = {k: v for k, v in config_data.model_dump().items() if v is not None}
-
-    config = await service.update_config(alert_key, **update_data)
-
+    config = await service.get_config_by_key(alert_key)
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Alert config '{alert_key}' not found",
         )
 
+    update_data = config_data.model_dump(exclude_unset=True)
+    if "led_scope" in update_data and update_data["led_scope"] is not None:
+        update_data["led_scope"] = LedScope(update_data["led_scope"]).value
+
+    update_data = _validate_merged_led_settings(config, update_data)
+
+    updated = await service.update_config(alert_key, **update_data)
+
     trigger_count = await service.get_trigger_count(alert_key)
-    return AlertConfigResponse(
-        id=config.id,
-        alert_key=config.alert_key,
-        name=config.name,
-        description=config.description,
-        default_priority=config.default_priority,
-        led_color=config.led_color,
-        led_effect=config.led_effect,
-        led_brightness=config.led_brightness,
-        led_duration=config.led_duration,
-        created_at=config.created_at,
-        updated_at=config.updated_at,
-        trigger_count=trigger_count,
-    )
+    return _config_response(updated or config, trigger_count)
 
 
 @router.delete("/{alert_key}", status_code=status.HTTP_204_NO_CONTENT)

@@ -2,12 +2,16 @@
  * Type definitions for alerts
  */
 
+export type LedScope = 'bar' | 'individual'
+
 export interface AlertConfig {
   id: number
   alert_key: string
   name: string | null
   description: string | null
   default_priority: number
+  led_scope: LedScope
+  led_positions: number[] | null
   led_color: number | null
   led_effect: string | null
   led_brightness: number | null
@@ -66,10 +70,30 @@ export interface AlertKeySummary {
   is_active: boolean
   last_triggered_at: string | null
   trigger_count: number
+  led_scope: LedScope
+  led_positions: number[] | null
   led_color: number | null
   led_effect: string | null
   led_brightness: number | null
   led_duration: number | null
+}
+
+export interface LedSlot {
+  led: number
+  alert_key: string | null
+  effect: string
+  color: number
+  level: number
+  duration: number
+}
+
+export interface RenderPlan {
+  mode: 'bar' | 'individual' | 'idle'
+  is_all_clear: boolean
+  bar_alert_key: string | null
+  leds: LedSlot[]
+  suppressed: string[]
+  commands: Record<string, unknown>[]
 }
 
 export interface BulkClearResponse {
@@ -87,6 +111,8 @@ export interface AlertConfigCreate {
   name?: string
   description?: string
   default_priority?: number
+  led_scope?: LedScope
+  led_positions?: number[] | null
   led_color?: number
   led_effect?: string
   led_brightness?: number
@@ -97,6 +123,8 @@ export interface AlertConfigUpdate {
   name?: string
   description?: string
   default_priority?: number
+  led_scope?: LedScope
+  led_positions?: number[] | null
   led_color?: number
   led_effect?: string
   led_brightness?: number

@@ -15,6 +15,7 @@ import type {
   DashboardStats,
   PaginatedAlertHistory,
   AlertHistory,
+  RenderPlan,
 } from '../types/alert'
 
 const api = axios.create({
@@ -46,6 +47,20 @@ export const alertsApi = {
   /** Get currently displayed alert */
   getCurrent: async (): Promise<CurrentDisplay> => {
     const { data } = await api.get<CurrentDisplay>('/alerts/current')
+    return data
+  },
+
+  /** Get what the switch is currently showing across all seven LEDs */
+  getPlan: async (): Promise<RenderPlan> => {
+    const { data } = await api.get<RenderPlan>('/alerts/plan')
+    return data
+  },
+
+  /** Get what the switch would show if exactly these alerts were active */
+  simulatePlan: async (alertKeys: string[]): Promise<RenderPlan> => {
+    const { data } = await api.post<RenderPlan>('/alerts/plan/simulate', {
+      alert_keys: alertKeys,
+    })
     return data
   },
 

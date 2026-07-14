@@ -213,35 +213,100 @@ automation:
 
 ## Inovelli LED Integration
 
-### Update Switch LED Based on Current Alert (HACS Integration)
+The Inovelli Blue Series LED bar has seven LEDs (LED 1 at the bottom, LED 7 at the
+top). Each LED holds its own effect in firmware, so several alerts can show at once
+on different LEDs. LightStack works out which alert owns which LED and publishes the
+result.
 
-Using the HACS integration with Zigbee2MQTT:
+### How LightStack decides what to show
+
+1. A whole-bar alert outranks every per-LED alert. If any bar alert is active, it is
+   shown and per-LED alerts are hidden. This matches the hardware: a whole-bar effect
+   masks the individual LEDs underneath it.
+2. Among competing bar alerts, the highest priority one wins.
+3. With no bar alert active, every per-LED alert shows at once. Where two alerts claim
+   the same LED, the higher priority one wins that LED.
+4. Equal priorities are broken alphabetically by alert key, so the display is stable.
+
+Effects are never blended: each LED shows exactly one alert.
+
+### Render plan
+
+`GET /api/v1/alerts/plan` and the `led_plan_changed` WebSocket event both return the
+switch's complete display state:
+
+```json
+{
+  "mode": "individual",
+  "is_all_clear": false,
+  "bar_alert_key": null,
+  "leds": [
+    {"led": 7, "alert_key": "doorbell", "effect": "fast_blink", "color": 1, "level": 100, "duration": 255},
+    {"led": 1, "alert_key": "laundry",  "effect": "solid",      "color": 170, "level": 60, "duration": 255}
+  ],
+  "suppressed": [],
+  "commands": [
+    {"led_effect": {"effect": "clear_effect", "color": 0, "level": 0, "duration": 255}},
+    {"individual_led_effect": {"led": "1", "effect": "solid", "color": 170, "level": 60, "duration": 255}},
+    {"individual_led_effect": {"led": "7", "effect": "fast_blink", "color": 1, "level": 100, "duration": 255}}
+  ]
+}
+```
+
+- `leds` is what each LED shows, for displaying in a UI.
+- `commands` is the payload sequence to publish, in order. It always specifies the bar
+  and all seven LEDs, so it can be applied without knowing what the switch showed
+  before. There is no bitmask on the hardware: one publish per LED.
+- `suppressed` lists alerts that are active but not currently on the switch.
+
+### Update Switch LEDs from the render plan
+
+Publish each command in order. Inovelli spaces its own per-LED commands about 100 ms
+apart, which this mirrors:
 
 ```yaml
 automation:
-  - alias: "Update Inovelli LED from LightStack"
+  - alias: "Update Inovelli LEDs from LightStack"
     trigger:
       - platform: state
-        entity_id: sensor.lightstack_current_alert
+        entity_id: sensor.lightstack_led_plan
     action:
-      - service: mqtt.publish
-        data:
-          topic: "zigbee2mqtt/Office Switch/set"
-          payload_template: >
-            {% set sensor = states.sensor.lightstack_current_alert %}
-            {% if sensor.state == 'All Clear' %}
-              {"led_effect": {"effect": "off"}}
-            {% else %}
-              {
-                "led_effect": {
-                  "effect": "{{ sensor.attributes.led_effect | default('solid') }}",
-                  "color": {{ sensor.attributes.led_color | default(0) }},
-                  "level": {{ sensor.attributes.led_brightness | default(100) }},
-                  "duration": {{ sensor.attributes.led_duration | default(255) }}
-                }
-              }
-            {% endif %}
+      - repeat:
+          for_each: "{{ state_attr('sensor.lightstack_led_plan', 'commands') }}"
+          sequence:
+            - service: mqtt.publish
+              data:
+                topic: "zigbee2mqtt/Office Switch/set"
+                payload: "{{ repeat.item | to_json }}"
+            - delay:
+                milliseconds: 100
 ```
+
+### Effects differ by scope
+
+A single LED accepts a smaller set of effects than the whole bar. Zigbee2MQTT discards
+an unsupported effect without reporting an error, so LightStack rejects the combination
+when the alert is saved.
+
+| Scope | Effects |
+|-------|---------|
+| Whole bar | off, solid, fast_blink, slow_blink, pulse, chase, open_close, small_to_big, aurora, slow_falling, medium_falling, fast_falling, slow_rising, medium_rising, fast_rising, medium_blink, slow_chase, fast_chase, fast_siren, slow_siren, clear_effect |
+| Single LED | off, solid, fast_blink, slow_blink, pulse, chase, falling, rising, aurora, clear_effect |
+
+`falling` and `rising` are per-LED names. The bar's speed variants (`fast_falling`,
+`slow_rising`, and so on) and its bar-wide animations (`fast_siren`, `open_close`,
+`small_to_big`, `slow_chase`, `fast_chase`, `medium_blink`) have no per-LED equivalent.
+
+### Keeping the switch and LightStack in step
+
+- **Set `duration` to 255 (indefinite) for alerts LightStack clears itself.** A shorter
+  duration expires in firmware while LightStack still believes the LED is lit.
+- **A per-LED effect is not erased by a whole-bar effect, only hidden.** Clearing the
+  bar brings it back. The published commands clear every LED explicitly, so applying a
+  plan in full always leaves the switch in the state LightStack intends.
+- **Double-tapping the config button clears notifications at the switch.** Re-publish
+  the current plan to bring the switch back in step.
+- **VZM36 (canopy module) has no LED bar** and cannot show notifications.
 
 ### Update Switch LED (REST Integration / Z-Wave)
 

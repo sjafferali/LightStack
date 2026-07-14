@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from app.api.health import router as health_router
 from app.api.v1.router import api_router as v1_router
 from app.config import settings
-from app.core.database import Base, engine
+from app.core.database import engine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,10 +29,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     logger.info("Starting up application...")
 
-    # Create database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
+    # Alembic owns the schema. Migrations run from the entrypoint, ahead of the
+    # app, so that concurrent workers do not race to apply the same DDL.
     logger.info("Application started successfully")
 
     yield

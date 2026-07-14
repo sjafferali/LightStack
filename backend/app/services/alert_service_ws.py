@@ -12,13 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.websocket import get_connection_manager
 from app.models import Alert
-from app.schemas.websocket import AlertData, ServerEventType
+from app.schemas.websocket import AlertData, LedPlanData, LedSlotData, ServerEventType
 from app.services.alert_service import AlertService
+from app.services.led_plan import RenderPlan
 
 logger = logging.getLogger(__name__)
 
 
-def _alert_to_data(alert: Alert) -> AlertData:
+def alert_to_data(alert: Alert) -> AlertData:
     """Convert Alert model to AlertData schema."""
     return AlertData(
         alert_key=alert.alert_key,
@@ -29,6 +30,8 @@ def _alert_to_data(alert: Alert) -> AlertData:
         name=alert.config.name if alert.config else None,
         description=alert.config.description if alert.config else None,
         default_priority=alert.config.default_priority if alert.config else 3,
+        led_scope=alert.config.led_scope if alert.config else "bar",
+        led_positions=alert.config.led_positions if alert.config else None,
         led_color=alert.config.led_color if alert.config else None,
         led_effect=alert.config.led_effect if alert.config else None,
         led_brightness=alert.config.led_brightness if alert.config else None,
@@ -40,7 +43,33 @@ def _alert_to_dict(alert: Alert | None) -> dict[str, Any] | None:
     """Convert Alert to dictionary for JSON serialization."""
     if alert is None:
         return None
-    return _alert_to_data(alert).model_dump(mode="json")
+    return alert_to_data(alert).model_dump(mode="json")
+
+
+def plan_to_data(plan: RenderPlan) -> LedPlanData:
+    """Convert a RenderPlan to its wire representation."""
+    return LedPlanData(
+        mode=plan.mode,
+        is_all_clear=plan.is_all_clear,
+        bar_alert_key=plan.bar_alert_key,
+        leds=[
+            LedSlotData(
+                led=slot.led,
+                alert_key=slot.alert_key,
+                effect=slot.effect,
+                color=slot.color,
+                level=slot.level,
+                duration=slot.duration,
+            )
+            for slot in plan.leds
+        ],
+        suppressed=plan.suppressed,
+        commands=plan.commands,
+    )
+
+
+def _plan_to_dict(plan: RenderPlan) -> dict[str, Any]:
+    return plan_to_data(plan).model_dump(mode="json")
 
 
 class AlertServiceWithBroadcast(AlertService):
@@ -58,6 +87,30 @@ class AlertServiceWithBroadcast(AlertService):
     async def _get_current_alert(self) -> Alert | None:
         """Get the current highest priority active alert."""
         return await self.get_current_display()
+
+    async def _plan_snapshot(self) -> dict[str, Any]:
+        """Capture the LED render plan for comparison across a state change."""
+        return _plan_to_dict(await self.get_render_plan())
+
+    async def _broadcast_plan_if_changed(self, previous: dict[str, Any]) -> None:
+        """
+        Broadcast led_plan_changed when the switch's display state differs.
+
+        The plan can change while the highest priority alert does not: two
+        per-LED alerts on different LEDs both render, so a second one appearing
+        changes the display without changing the winner.
+        """
+        current = await self._plan_snapshot()
+        if current == previous:
+            return
+
+        logger.debug(
+            "LED plan changed: mode=%s bar=%s suppressed=%s",
+            current["mode"],
+            current["bar_alert_key"],
+            current["suppressed"],
+        )
+        await self._manager.broadcast(ServerEventType.LED_PLAN_CHANGED.value, current)
 
     async def _broadcast_current_change(
         self,
@@ -97,8 +150,10 @@ class AlertServiceWithBroadcast(AlertService):
         Broadcasts:
         - alert_triggered: Always
         - current_alert_changed: If the current display alert changed
+        - led_plan_changed: If the switch's display state changed
         """
         # Get current state before trigger
+        previous_plan = await self._plan_snapshot()
         previous_current = await self._get_current_alert()
 
         # Perform the trigger
@@ -140,6 +195,8 @@ class AlertServiceWithBroadcast(AlertService):
                 },
             )
 
+        await self._broadcast_plan_if_changed(previous_plan)
+
         return alert
 
     async def clear_alert(self, alert_key: str, note: str | None = None) -> Alert | None:
@@ -149,8 +206,10 @@ class AlertServiceWithBroadcast(AlertService):
         Broadcasts:
         - alert_cleared: Always (if alert exists)
         - current_alert_changed: If the current display alert changed
+        - led_plan_changed: If the switch's display state changed
         """
         # Get current state before clear
+        previous_plan = await self._plan_snapshot()
         previous_current = await self._get_current_alert()
 
         # Perform the clear
@@ -191,6 +250,8 @@ class AlertServiceWithBroadcast(AlertService):
                 },
             )
 
+        await self._broadcast_plan_if_changed(previous_plan)
+
         return alert
 
     async def clear_all_alerts(self, note: str | None = None) -> list[str]:
@@ -200,8 +261,10 @@ class AlertServiceWithBroadcast(AlertService):
         Broadcasts:
         - all_alerts_cleared: Always (with list of cleared keys)
         - current_alert_changed: If there was a current alert
+        - led_plan_changed: If the switch's display state changed
         """
         # Get current state before clear
+        previous_plan = await self._plan_snapshot()
         previous_current = await self._get_current_alert()
 
         # Perform the bulk clear
@@ -230,5 +293,7 @@ class AlertServiceWithBroadcast(AlertService):
                     "active_count": 0,
                 },
             )
+
+        await self._broadcast_plan_if_changed(previous_plan)
 
         return cleared_keys

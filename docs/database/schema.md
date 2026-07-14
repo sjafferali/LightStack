@@ -32,6 +32,8 @@ Stores configuration for each alert type.
 | `name` | VARCHAR | Yes | NULL | Human-readable name |
 | `description` | VARCHAR | Yes | NULL | Alert description |
 | `default_priority` | INTEGER | No | 3 | Default priority (1-5) |
+| `led_scope` | VARCHAR | No | 'bar' | 'bar' (whole strip) or 'individual' (specific LEDs) |
+| `led_positions` | JSON | Yes | NULL | LEDs (1-7, bottom to top) lit when scope is 'individual' |
 | `led_color` | INTEGER | Yes | NULL | Inovelli LED color (0-255) |
 | `led_effect` | VARCHAR | Yes | NULL | Inovelli LED effect name |
 | `led_brightness` | INTEGER | Yes | NULL | LED brightness (0-100) |
@@ -52,6 +54,8 @@ CREATE TABLE alert_configs (
     name VARCHAR,
     description VARCHAR,
     default_priority INTEGER NOT NULL DEFAULT 3,
+    led_scope VARCHAR(20) NOT NULL DEFAULT 'bar',
+    led_positions JSON,
     led_color INTEGER,
     led_effect VARCHAR(50),
     led_brightness INTEGER,

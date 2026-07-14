@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Card, Button, PriorityBadge, Modal } from '../components/ui'
+import { InovelliSwitch, LedLegend } from '../components/InovelliSwitch'
 import { alertsApi, statsApi, historyApi } from '../services/api'
 import { Alert, AlertHistory, PRIORITY_CONFIG } from '../types/alert'
 
@@ -39,6 +40,12 @@ export function Dashboard() {
     refetchInterval: 5000,
   })
 
+  const { data: plan } = useQuery({
+    queryKey: ['alerts', 'plan'],
+    queryFn: alertsApi.getPlan,
+    refetchInterval: 5000,
+  })
+
   const { data: stats } = useQuery({
     queryKey: ['stats'],
     queryFn: statsApi.getDashboard,
@@ -73,53 +80,89 @@ export function Dashboard() {
     onError: () => toast.error('Failed to clear alerts'),
   })
 
-  const currentDisplayed = currentDisplay?.alert
   const isLoading = loadingCurrent || loadingActive
+  const litCount = plan?.leds.filter((l) => l.alert_key).length ?? 0
+  // Drives the card's accent colour: the most severe alert currently active.
+  const topAlert = currentDisplay?.alert
+
+  // Alerts actually lit on the switch, bottom LED first. Several can show at
+  // once, so this is a set rather than a single winner.
+  const shownAlerts = [
+    ...new Set(
+      (plan?.leds ?? [])
+        .filter((l) => l.alert_key)
+        .sort((a, b) => a.led - b.led)
+        .map((l) => l.alert_key as string),
+    ),
+  ]
+  const shown = new Set(shownAlerts)
+  const barAlert =
+    plan?.mode === 'bar' ? activeAlerts.find((a) => a.alert_key === plan.bar_alert_key) : undefined
 
   return (
     <div className="flex flex-col gap-6">
       {/* Current Display Status */}
       <Card
         className={`bg-gradient-to-br from-[rgba(28,28,30,0.9)] to-[rgba(44,44,46,0.5)] ${
-          currentDisplayed
-            ? `border-[${PRIORITY_CONFIG[currentDisplayed.effective_priority]?.color}]`
-            : ''
+          topAlert ? `border-[${PRIORITY_CONFIG[topAlert.effective_priority]?.color}]` : ''
         }`}
-        glow={currentDisplayed ? PRIORITY_CONFIG[currentDisplayed.effective_priority]?.glow : null}
+        glow={topAlert ? PRIORITY_CONFIG[topAlert.effective_priority]?.glow : null}
       >
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-center gap-10">
+          <div className="min-w-0 flex-1">
             <p className="m-0 mb-2 font-mono text-[11px] uppercase tracking-wider text-[#8e8e93]">
               Currently Displaying on Switches
             </p>
-            {isLoading ? (
-              <p className="text-lg text-[#8e8e93]">Loading...</p>
-            ) : currentDisplayed ? (
+
+            {isLoading || !plan ? (
+              <p className="text-lg text-[#8e8e93]">Loading…</p>
+            ) : plan.is_all_clear ? (
+              <h2 className="m-0 text-[28px] font-bold text-[#34c759]">All Clear &#10003;</h2>
+            ) : plan.mode === 'bar' && barAlert ? (
               <>
                 <h2
                   className="m-0 mb-3 font-mono text-[28px] font-bold"
-                  style={{ color: PRIORITY_CONFIG[currentDisplayed.effective_priority]?.color }}
+                  style={{ color: PRIORITY_CONFIG[barAlert.effective_priority]?.color }}
                 >
-                  {currentDisplayed.alert_key}
+                  {barAlert.alert_key}
                 </h2>
-                <PriorityBadge priority={currentDisplayed.effective_priority} />
+                <PriorityBadge priority={barAlert.effective_priority} />
+                <p className="m-0 mt-4 max-w-md text-[13px] leading-relaxed text-[#8e8e93]">
+                  Covers the whole bar
+                  {plan.suppressed.length > 0 && (
+                    <>
+                      , hiding{' '}
+                      <span className="font-mono text-[#c7c7cc]">{plan.suppressed.join(', ')}</span>{' '}
+                      until it clears
+                    </>
+                  )}
+                  .
+                </p>
               </>
             ) : (
-              <h2 className="m-0 text-[28px] font-bold text-[#34c759]">All Clear &#10003;</h2>
+              <>
+                {/* Several alerts can share the bar, so no single one is "the" display. */}
+                <h2 className="m-0 mb-3 text-[28px] font-bold text-white">
+                  {shownAlerts.length} {shownAlerts.length === 1 ? 'alert' : 'alerts'} on {litCount}{' '}
+                  {litCount === 1 ? 'LED' : 'LEDs'}
+                </h2>
+                {plan.suppressed.length > 0 && (
+                  <p className="m-0 mt-4 max-w-md text-[13px] leading-relaxed text-[#8e8e93]">
+                    <span className="font-mono text-[#c7c7cc]">{plan.suppressed.join(', ')}</span>{' '}
+                    {plan.suppressed.length === 1 ? 'is' : 'are'} outranked on every LED they claim.
+                  </p>
+                )}
+              </>
             )}
           </div>
-          <div
-            className={`flex h-20 w-20 items-center justify-center rounded-xl text-4xl ${
-              currentDisplayed ? 'animate-glow' : ''
-            }`}
-            style={{
-              background: currentDisplayed
-                ? `linear-gradient(135deg, ${PRIORITY_CONFIG[currentDisplayed.effective_priority]?.color}40 0%, ${PRIORITY_CONFIG[currentDisplayed.effective_priority]?.color}10 100%)`
-                : 'linear-gradient(135deg, #34c75940 0%, #34c75910 100%)',
-            }}
-          >
-            {currentDisplayed ? '💡' : '✨'}
-          </div>
+
+          {/* The switch itself: what someone walking past the wall would see. */}
+          {plan && (
+            <div className="flex shrink-0 items-center gap-5">
+              <LedLegend mode={plan.mode} leds={plan.leds} />
+              <InovelliSwitch mode={plan.mode} leds={plan.leds} size="md" />
+            </div>
+          )}
         </div>
       </Card>
 
@@ -167,7 +210,7 @@ export function Dashboard() {
                   <div className="mb-2 flex items-center gap-3">
                     <h3 className="m-0 font-mono text-base font-semibold">{alert.alert_key}</h3>
                     <PriorityBadge priority={alert.effective_priority} size="small" />
-                    {currentDisplayed?.alert_key === alert.alert_key && (
+                    {shown.has(alert.alert_key) && (
                       <span className="rounded bg-[rgba(10,132,255,0.2)] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#0a84ff]">
                         DISPLAYING
                       </span>

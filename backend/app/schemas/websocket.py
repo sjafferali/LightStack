@@ -30,6 +30,9 @@ class ServerEventType(str, Enum):
     # Current display changes (key event for HA sensor)
     CURRENT_ALERT_CHANGED = "current_alert_changed"
 
+    # LED render plan changes (key event for driving the switch)
+    LED_PLAN_CHANGED = "led_plan_changed"
+
     # Response to client commands
     COMMAND_RESULT = "command_result"
     ERROR = "error"
@@ -70,10 +73,45 @@ class AlertData(BaseModel):
     name: str | None = None
     description: str | None = None
     default_priority: int = 3
+    led_scope: str = "bar"
+    led_positions: list[int] | None = None
     led_color: int | None = None
     led_effect: str | None = None
     led_brightness: int | None = None
     led_duration: int | None = None
+
+
+class LedSlotData(BaseModel):
+    """What a single LED on the bar displays."""
+
+    led: int = Field(description="LED position (1=bottom, 7=top)")
+    alert_key: str | None = Field(None, description="Alert owning this LED, null if unlit")
+    effect: str
+    color: int
+    level: int
+    duration: int
+
+
+class LedPlanData(BaseModel):
+    """
+    The complete LED display state of a switch.
+
+    `leds` describes what each LED looks like, for display in a UI. `commands`
+    is the Zigbee2MQTT payload sequence that produces it, published in order.
+    The commands always specify the bar and all seven LEDs, so a client can
+    apply them without knowing what was on the switch beforehand.
+    """
+
+    mode: str = Field(description="'bar', 'individual', or 'idle'")
+    is_all_clear: bool
+    bar_alert_key: str | None = None
+    leds: list[LedSlotData] = Field(default_factory=list)
+    suppressed: list[str] = Field(
+        default_factory=list, description="Alerts that are active but not currently rendered"
+    )
+    commands: list[dict[str, Any]] = Field(
+        default_factory=list, description="Zigbee2MQTT payloads to publish, in order"
+    )
 
 
 class CurrentAlertState(BaseModel):
@@ -84,6 +122,9 @@ class CurrentAlertState(BaseModel):
     active_count: int = Field(description="Number of currently active alerts")
     active_alerts: list[AlertData] = Field(
         default_factory=list, description="All active alerts ordered by priority"
+    )
+    led_plan: LedPlanData | None = Field(
+        None, description="What the switch should currently display"
     )
 
 

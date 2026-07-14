@@ -16,6 +16,7 @@ settings.SQLITE_DATABASE_PATH = ":memory:"
 
 # Now import app modules (after settings are configured)
 from app.core.database import Base, get_db  # noqa: E402
+from app.core.database import engine as app_engine  # noqa: E402
 from app.main import app  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
@@ -45,6 +46,20 @@ TestSessionLocal = async_sessionmaker(
 # pytest-asyncio >= 0.23 manages event loops automatically via asyncio_mode = "auto"
 # and asyncio_default_fixture_loop_scope = "function" in pyproject.toml.
 # The old fixture caused conflicts with TestClient's internal event loop.
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def app_schema() -> AsyncGenerator[None, None]:
+    """
+    Create the schema on the app's own engine.
+
+    The WebSocket endpoint opens sessions directly rather than through the get_db
+    dependency, so it reaches the app's in-memory database instead of the one
+    behind the overridden dependency.
+    """
+    async with app_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 
 @pytest_asyncio.fixture

@@ -24,6 +24,7 @@ export function Layout({ children }: LayoutProps) {
   const tabs = [
     { path: '/', label: 'dashboard' },
     { path: '/alerts', label: 'alerts' },
+    { path: '/simulator', label: 'simulator' },
     { path: '/history', label: 'history' },
   ]
 

@@ -11,6 +11,7 @@ to connected WebSocket clients for real-time updates.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants.inovelli import LedScope
 from app.core.database import get_db
 from app.models.alert import Alert
 from app.schemas.alert import (
@@ -20,11 +21,27 @@ from app.schemas.alert import (
     AlertTriggerRequest,
     BulkClearResponse,
     CurrentDisplayResponse,
+    LedSlotResponse,
+    RenderPlanResponse,
+    SimulatePlanRequest,
 )
 from app.services.alert_service import AlertService
 from app.services.alert_service_ws import AlertServiceWithBroadcast
+from app.services.led_plan import RenderPlan
 
 router = APIRouter()
+
+
+def _plan_response(plan: RenderPlan) -> RenderPlanResponse:
+    """Helper to build RenderPlanResponse from a RenderPlan."""
+    return RenderPlanResponse(
+        mode=plan.mode,
+        is_all_clear=plan.is_all_clear,
+        bar_alert_key=plan.bar_alert_key,
+        leds=[LedSlotResponse.model_validate(slot) for slot in plan.leds],
+        suppressed=plan.suppressed,
+        commands=plan.commands,
+    )
 
 
 def _build_alert_response(alert: Alert, trigger_count: int = 0) -> AlertResponse:
@@ -37,6 +54,8 @@ def _build_alert_response(alert: Alert, trigger_count: int = 0) -> AlertResponse
             name=alert.config.name,
             description=alert.config.description,
             default_priority=alert.config.default_priority,
+            led_scope=LedScope(alert.config.led_scope),
+            led_positions=alert.config.led_positions,
             led_color=alert.config.led_color,
             led_effect=alert.config.led_effect,
             led_brightness=alert.config.led_brightness,
@@ -103,6 +122,37 @@ async def list_active_alerts(
         result.append(_build_alert_response(alert, trigger_count))
 
     return result
+
+
+@router.get("/plan", response_model=RenderPlanResponse)
+async def get_render_plan(
+    db: AsyncSession = Depends(get_db),
+) -> RenderPlanResponse:
+    """
+    Get the LED display state produced by the currently active alerts.
+
+    `leds` describes what each of the switch's seven LEDs shows. `commands` is
+    the Zigbee2MQTT payload sequence that produces it, to be published in order.
+    The commands fully specify the bar and all seven LEDs, so they can be
+    applied without knowing what the switch was showing beforehand.
+    """
+    service = AlertService(db)
+    return _plan_response(await service.get_render_plan())
+
+
+@router.post("/plan/simulate", response_model=RenderPlanResponse)
+async def simulate_render_plan(
+    request: SimulatePlanRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RenderPlanResponse:
+    """
+    Preview the LED display state a given set of alerts would produce.
+
+    Resolves the same arbitration rules as the live plan against the supplied
+    alert keys, without reading or changing any alert state.
+    """
+    service = AlertService(db)
+    return _plan_response(await service.simulate_render_plan(request.alert_keys))
 
 
 @router.get("/current", response_model=CurrentDisplayResponse)

@@ -20,47 +20,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.websocket import get_connection_manager
-from app.models.alert import Alert
 from app.schemas.websocket import (
-    AlertData,
     ClientCommandType,
     ClientMessage,
     CurrentAlertState,
     ServerEventType,
 )
 from app.services.alert_service import AlertService
+from app.services.alert_service_ws import alert_to_data, plan_to_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _alert_to_data(alert: Alert) -> AlertData:
-    """Convert Alert model to AlertData schema."""
-    return AlertData(
-        alert_key=alert.alert_key,
-        is_active=alert.is_active,
-        effective_priority=alert.effective_priority,
-        priority=alert.priority,
-        last_triggered_at=alert.last_triggered_at,
-        name=alert.config.name if alert.config else None,
-        description=alert.config.description if alert.config else None,
-        default_priority=alert.config.default_priority if alert.config else 3,
-        led_color=alert.config.led_color if alert.config else None,
-        led_effect=alert.config.led_effect if alert.config else None,
-    )
-
-
 async def _get_current_state(db: AsyncSession) -> CurrentAlertState:
-    """Get the current alert state."""
+    """Get the current alert state, including what the switch should display."""
     service = AlertService(db)
     active_alerts = await service.get_active_alerts()
     current = active_alerts[0] if active_alerts else None
 
     return CurrentAlertState(
         is_all_clear=current is None,
-        current_alert=_alert_to_data(current) if current else None,
+        current_alert=alert_to_data(current) if current else None,
         active_count=len(active_alerts),
-        active_alerts=[_alert_to_data(a) for a in active_alerts],
+        active_alerts=[alert_to_data(a) for a in active_alerts],
+        led_plan=plan_to_data(await service.get_render_plan()),
     )
 
 
@@ -103,7 +87,7 @@ async def _handle_get_active_alerts(
             "command_type": ClientCommandType.GET_ACTIVE_ALERTS.value,
             "success": True,
             "result": {
-                "alerts": [_alert_to_data(a).model_dump(mode="json") for a in active_alerts],
+                "alerts": [alert_to_data(a).model_dump(mode="json") for a in active_alerts],
                 "count": len(active_alerts),
             },
         },
@@ -128,7 +112,7 @@ async def _handle_get_all_alerts(
             "command_type": ClientCommandType.GET_ALL_ALERTS.value,
             "success": True,
             "result": {
-                "alerts": [_alert_to_data(a).model_dump(mode="json") for a in all_alerts],
+                "alerts": [alert_to_data(a).model_dump(mode="json") for a in all_alerts],
                 "count": len(all_alerts),
             },
         },
@@ -177,7 +161,7 @@ async def _handle_trigger_alert(
             "command_type": ClientCommandType.TRIGGER_ALERT.value,
             "success": True,
             "result": {
-                "alert": _alert_to_data(alert).model_dump(mode="json"),
+                "alert": alert_to_data(alert).model_dump(mode="json"),
             },
         },
     )
@@ -232,7 +216,7 @@ async def _handle_clear_alert(
             "command_type": ClientCommandType.CLEAR_ALERT.value,
             "success": True,
             "result": {
-                "alert": _alert_to_data(alert).model_dump(mode="json"),
+                "alert": alert_to_data(alert).model_dump(mode="json"),
             },
         },
     )
