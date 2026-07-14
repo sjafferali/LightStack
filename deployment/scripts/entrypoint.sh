@@ -45,21 +45,14 @@ else
 fi
 
 # Run database migrations
-echo "Running database migrations..."
-cd /app/backend
-
-# Ensure versions directory exists
-mkdir -p alembic/versions
-
-# Create initial migration if none exist
-if [ -z "$(ls -A alembic/versions/*.py 2>/dev/null)" ]; then
-    echo "Creating initial migration..."
-    alembic revision --autogenerate -m "Initial migration" || true
-fi
-
-# Run migrations
+# Alembic owns the schema, so this runs before the app serves any traffic. A
+# database left behind by an older release has the tables but no migration
+# history; the migration runner adopts it at the initial revision so that later
+# revisions apply to it. A failure here leaves the schema behind the code, so it
+# stops the container rather than serving requests against the wrong columns.
 echo "Applying database migrations..."
-alembic upgrade head || echo "Migration completed or no changes needed"
+cd /app/backend
+python -m scripts.migrate
 
 # Set WORKERS - default to 1 for WebSocket state consistency
 # Multiple workers would each have their own ConnectionManager instance,

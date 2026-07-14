@@ -81,7 +81,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --no-auto-fix     Disable automatic fixes for ESLint and Ruff"
       echo "  --frontend-only   Run only frontend checks"
       echo "  --backend-only    Run only backend checks"
-      echo "  --postgres        Use PostgreSQL for tests"
+      echo "  --postgres        Start a PostgreSQL container for the tests to reach"
       echo "  -h, --help        Show this help message"
       exit 0 ;;
     *)
@@ -142,7 +142,16 @@ if [ "$SKIP_TESTS" = false ] && [ "$FRONTEND_ONLY" = false ]; then
         poetry install --with dev
     fi
 
-    # Setup PostgreSQL if requested
+    # GitHub Actions runs the tests with DATABASE_URL pointing at its PostgreSQL
+    # service, so the same variable is exported here. The test suite overrides it
+    # and runs against SQLite in memory; exporting it anyway means this script
+    # resolves database settings down the same path CI does, and a change that
+    # only works when DATABASE_URL is absent fails here rather than on main.
+    export DATABASE_URL="postgresql://test_user:test_password@localhost:5432/test_webapp"
+    export TESTING="true"
+
+    # --postgres additionally starts the server that URL points at, for when the
+    # tests are meant to reach a real PostgreSQL.
     POSTGRES_CONTAINER=""
     if [ "$USE_POSTGRES" = true ]; then
         echo -e "${YELLOW}Starting PostgreSQL container for tests...${NC}"
@@ -164,15 +173,13 @@ if [ "$SKIP_TESTS" = false ] && [ "$FRONTEND_ONLY" = false ]; then
         echo -e "${YELLOW}Waiting for PostgreSQL...${NC}"
         sleep 5
 
-        export DATABASE_URL="postgresql://test_user:test_password@localhost:5432/test_webapp"
-        export TESTING="true"
         print_success "PostgreSQL test database started"
     else
-        export TESTING="true"
-        print_success "Using SQLite for tests"
+        print_success "Using the same environment as CI (DATABASE_URL set, tests run on SQLite)"
     fi
 
-    run_check "Backend tests with coverage" "poetry run pytest --cov=backend/app --cov-report=term"
+    run_check "Backend tests with coverage" \
+        "poetry run pytest backend/tests/ --cov=backend/app --cov-report=xml:coverage.xml --cov-report=term"
 
     if [ -n "$POSTGRES_CONTAINER" ]; then
         docker rm -f "$POSTGRES_CONTAINER" > /dev/null 2>&1
@@ -251,6 +258,23 @@ if [ "$SKIP_LINT" = false ] && [ "$BACKEND_ONLY" = false ]; then
             EXIT_CODE=$SAVED_EXIT_CODE
             print_success "ESLint auto-fixed"
         fi
+    fi
+
+    cd "$PROJECT_ROOT"
+fi
+
+# Dependency Security Check
+if [ "$SKIP_LINT" = false ] && [ "$BACKEND_ONLY" = false ]; then
+    print_section "Dependency Security Check"
+
+    cd "$PROJECT_ROOT/frontend"
+
+    # Reports vulnerabilities without failing, matching how CI treats them.
+    if npm audit --audit-level=high > /dev/null 2>&1; then
+        print_success "npm audit found no high severity vulnerabilities"
+    else
+        print_warning "npm audit found vulnerabilities"
+        npm audit --audit-level=high || true
     fi
 
     cd "$PROJECT_ROOT"

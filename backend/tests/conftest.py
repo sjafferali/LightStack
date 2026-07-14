@@ -11,6 +11,10 @@ import pytest_asyncio
 from app.config import settings
 
 settings.TESTING = True
+# DATABASE_URL takes precedence over DATABASE_TYPE when building the engine URL,
+# so it has to be cleared for the switch to SQLite to take effect. CI sets it to
+# a PostgreSQL server, which would otherwise become the engine the app runs on.
+settings.DATABASE_URL = None
 settings.DATABASE_TYPE = "sqlite"
 settings.SQLITE_DATABASE_PATH = ":memory:"
 
