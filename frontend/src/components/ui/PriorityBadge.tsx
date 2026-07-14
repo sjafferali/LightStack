@@ -1,25 +1,24 @@
-import { PRIORITY_CONFIG } from '../../types/alert'
+import clsx from 'clsx'
+import { priorityColor, priorityLabel, priorityTint } from '../../constants/priority'
 
 interface PriorityBadgeProps {
   priority: number
-  size?: 'small' | 'normal'
+  /** 'compact' drops the label, for tight rows where the number carries it. */
+  variant?: 'full' | 'compact'
+  className?: string
 }
 
-export function PriorityBadge({ priority, size = 'normal' }: PriorityBadgeProps) {
-  const config = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG[3]
-
-  const sizeClasses = size === 'small' ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]'
-
+export function PriorityBadge({ priority, variant = 'full', className }: PriorityBadgeProps) {
   return (
     <span
-      className={`${sizeClasses} rounded font-mono font-bold uppercase tracking-wide`}
-      style={{
-        background: config.bg,
-        color: config.color,
-        border: `1px solid ${config.color}`,
-      }}
+      className={clsx(
+        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-bold',
+        variant === 'full' ? 'px-2.5 py-1 text-[11px]' : 'px-2 py-0.5 text-[11px]',
+        className,
+      )}
+      style={{ background: priorityTint(priority), color: priorityColor(priority) }}
     >
-      P{priority} &middot; {config.label}
+      {variant === 'full' ? `P${priority} · ${priorityLabel(priority)}` : `P${priority}`}
     </span>
   )
 }

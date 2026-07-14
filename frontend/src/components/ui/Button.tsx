@@ -1,7 +1,7 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react'
 import clsx from 'clsx'
 
-type ButtonVariant = 'default' | 'primary' | 'danger' | 'success' | 'ghost'
+type ButtonVariant = 'default' | 'primary' | 'danger' | 'ghost'
 type ButtonSize = 'small' | 'normal'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -11,16 +11,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  default: 'bg-[#2c2c2e] text-white border border-[#3a3a3c]',
-  primary: 'bg-[#0a84ff] text-white border-transparent',
-  danger: 'bg-[rgba(255,59,48,0.2)] text-[#ff3b30] border border-[rgba(255,59,48,0.3)]',
-  success: 'bg-[rgba(52,199,89,0.2)] text-[#34c759] border border-[rgba(52,199,89,0.3)]',
-  ghost: 'bg-transparent text-[#8e8e93] border border-transparent',
+  default: 'border border-line2 bg-panel text-tx hover:border-accent hover:text-accent',
+  primary: 'border border-transparent bg-accent text-white hover:opacity-90',
+  danger: 'border border-line2 bg-panel text-tx2 hover:border-p1 hover:text-p1',
+  ghost: 'border border-transparent bg-transparent text-tx2 hover:bg-panel2 hover:text-tx',
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
-  small: 'px-3 py-1.5 text-[11px]',
-  normal: 'px-[18px] py-2.5 text-xs',
+  small: 'px-3 py-1.5 text-[12px]',
+  normal: 'px-4 py-2.5 text-[13px]',
 }
 
 export function Button({
@@ -34,9 +33,8 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-md font-semibold tracking-wide transition-all duration-200',
-        'hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50',
-        'font-mono',
+        'inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors duration-150',
+        'disabled:cursor-not-allowed disabled:opacity-45',
         variantStyles[variant],
         sizeStyles[size],
         className,

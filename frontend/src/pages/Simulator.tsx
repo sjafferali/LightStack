@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Card, PriorityBadge } from '../components/ui'
+import { Button, Card, CardTitle, PriorityBadge } from '../components/ui'
+import { PageHeader } from '../components/Layout'
 import { InovelliSwitch, LedLegend } from '../components/InovelliSwitch'
 import { alertsApi, alertConfigsApi } from '../services/api'
 import { getColorByValue } from '../constants/inovelli'
+import { priorityColor } from '../constants/priority'
 
 /**
  * Try alert combinations against the arbitration rules without triggering
@@ -29,20 +31,34 @@ export function Simulator() {
     )
 
   const suppressed = new Set(plan?.suppressed ?? [])
+  const litCount = plan?.leds.filter((l) => l.alert_key).length ?? 0
+
+  const explanation = () => {
+    if (!plan || plan.is_all_clear) return 'Turn on an alert to see it appear on the switch.'
+    if (plan.mode === 'bar') {
+      return `${plan.bar_alert_key} is a whole-bar alert, so it covers the switch and hides every per-LED alert while it is active — whatever their priority.`
+    }
+    return `${litCount} of 7 LEDs lit. Where two alerts claim the same LED, the higher priority one wins it.`
+  }
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="m-0 mb-1 text-xl font-bold">Simulator</h2>
-        <p className="m-0 text-[13px] text-[#8e8e93]">
-          Turn alerts on to see what the switch would show. Nothing here changes live alerts.
-        </p>
-      </div>
+      <PageHeader
+        title="Simulator"
+        subtitle="Turn alerts on to see what the switch would show. Nothing here changes live alerts."
+        action={
+          selected.length > 0 ? (
+            <Button variant="default" onClick={() => setSelected([])}>
+              Reset
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <Card noPadding className="overflow-hidden">
           {summary.length === 0 ? (
-            <p className="p-8 text-center text-[13px] text-[#8e8e93]">
+            <p className="m-0 p-10 text-center text-[13px] text-tx2">
               No alert keys yet. Create one on the Alerts page to simulate it here.
             </p>
           ) : (
@@ -50,31 +66,31 @@ export function Simulator() {
               {summary.map((a) => {
                 const on = selected.includes(a.alert_key)
                 const hidden = on && suppressed.has(a.alert_key)
-                const swatch = getColorByValue(a.led_color)?.hex ?? '#3a3a3c'
+                const swatch = getColorByValue(a.led_color)?.hex ?? 'var(--line2)'
 
                 return (
-                  <li key={a.alert_key} className="border-b border-[#2c2c2e] last:border-b-0">
+                  <li key={a.alert_key} className="border-b border-line last:border-b-0">
                     <button
                       type="button"
                       onClick={() => toggle(a.alert_key)}
                       aria-pressed={on}
                       className={clsx(
-                        'flex w-full items-center gap-3 px-5 py-3 text-left transition-colors',
-                        'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0a84ff]',
-                        on ? 'bg-[#2c2c2e]/60' : 'hover:bg-[#2c2c2e]/30',
+                        'flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors',
+                        on ? 'bg-panel2' : 'hover:bg-panel2',
                       )}
                     >
                       <span
                         className={clsx(
-                          'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-                          on ? 'border-[#0a84ff] bg-[#0a84ff]' : 'border-[#48484a]',
+                          'grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] border transition-colors',
+                          on ? 'border-accent bg-accent text-white' : 'border-line2',
                         )}
                       >
                         {on && (
                           <svg
-                            className="h-3 w-3 text-white"
+                            className="h-3 w-3"
                             viewBox="0 0 20 20"
                             fill="currentColor"
+                            aria-hidden="true"
                           >
                             <path
                               fillRule="evenodd"
@@ -86,29 +102,29 @@ export function Simulator() {
                       </span>
 
                       <span
-                        className="h-6 w-1 shrink-0 rounded-full"
-                        style={{ backgroundColor: on ? swatch : '#3a3a3c' }}
+                        className="h-7 w-1 shrink-0 rounded"
+                        style={{ backgroundColor: on ? swatch : 'var(--line2)' }}
                       />
 
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-mono text-[13px] text-white">
+                        <b className="block truncate font-mono text-[13px] font-semibold text-tx">
                           {a.alert_key}
-                        </span>
-                        <span className="block truncate text-[11px] text-[#8e8e93]">
+                        </b>
+                        <small className="block truncate text-[12px] text-tx2">
                           {a.led_scope === 'bar'
                             ? 'Whole bar'
-                            : `LED ${(a.led_positions ?? []).join(', ') || '—'}`}
-                          {a.led_effect ? ` · ${a.led_effect}` : ''}
-                        </span>
+                            : `LEDs ${(a.led_positions ?? []).join(', ') || '—'}`}
+                          {a.led_effect ? ` · ${a.led_effect.replace(/_/g, ' ')}` : ''}
+                        </small>
                       </span>
 
                       {hidden && (
-                        <span className="shrink-0 rounded-full bg-[#3a3a3c] px-2 py-0.5 text-[10px] text-[#c7c7cc]">
+                        <span className="shrink-0 rounded-full border border-line2 px-2 py-0.5 text-[10.5px] font-semibold text-tx2">
                           Hidden
                         </span>
                       )}
 
-                      <PriorityBadge priority={a.default_priority} />
+                      <PriorityBadge priority={a.default_priority} variant="compact" />
                     </button>
                   </li>
                 )
@@ -117,24 +133,43 @@ export function Simulator() {
           )}
         </Card>
 
-        <Card className="flex flex-col items-center gap-4 self-start">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-[#8e8e93]">
-            On the switch
-          </span>
+        <Card className="self-start">
+          <CardTitle>On the switch</CardTitle>
 
-          {plan && <InovelliSwitch mode={plan.mode} leds={plan.leds} size="lg" />}
+          <div className="flex flex-col items-center gap-4">
+            {plan && <InovelliSwitch mode={plan.mode} leds={plan.leds} size="lg" />}
 
-          {plan && !plan.is_all_clear && (
-            <LedLegend mode={plan.mode} leds={plan.leds} className="w-full" />
-          )}
+            {plan && !plan.is_all_clear && (
+              <LedLegend mode={plan.mode} leds={plan.leds} className="w-full" />
+            )}
 
-          <p className="m-0 max-w-[15rem] text-center text-[12px] leading-relaxed text-[#8e8e93]">
-            {!plan || plan.is_all_clear
-              ? 'All clear. Turn on an alert to see it appear.'
-              : plan.mode === 'bar'
-                ? `${plan.bar_alert_key} is a whole-bar alert, so it covers the switch and hides every per-LED alert while it is active.`
-                : `${plan.leds.filter((l) => l.alert_key).length} of 7 LEDs lit. Where alerts overlap, the higher priority one wins that LED.`}
-          </p>
+            <p className="m-0 text-center text-[12.5px] leading-relaxed text-tx2">
+              {explanation()}
+            </p>
+
+            {plan && plan.suppressed.length > 0 && (
+              <div className="w-full rounded-xl border border-line bg-panel2 p-3">
+                <p className="eyebrow m-0 mb-1.5">Hidden</p>
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                  {plan.suppressed.map((key) => {
+                    const cfg = summary.find((s) => s.alert_key === key)
+                    return (
+                      <li
+                        key={key}
+                        className="flex items-center gap-2 font-mono text-[12px] text-tx2"
+                      >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: priorityColor(cfg?.default_priority ?? 3) }}
+                        />
+                        {key}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
         </Card>
       </div>
     </div>

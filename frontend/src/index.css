@@ -1,65 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
+/*
+ * Colour is defined once here and consumed through Tailwind's semantic names
+ * (bg, panel, line, tx, accent, p1-p5). Switching data-mode on <html> repaints
+ * the whole app, so components never branch on the theme themselves.
+ */
 @layer base {
+  html[data-mode='dark'] {
+    --bg: #0b0e17;
+    --panel: #121624;
+    --panel2: #161b2b;
+    --line: #232a3d;
+    --line2: #2c3448;
+    --tx: #e9edf7;
+    --tx2: #9aa3ba;
+    --tx3: #69718a;
+    --accent: #6d8bff;
+
+    --p1: #ff3b30;
+    --p2: #ff9500;
+    --p3: #ffcc00;
+    --p4: #34c759;
+    --p5: #5ac8fa;
+
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+
+  html[data-mode='light'] {
+    --bg: #f5f6fa;
+    --panel: #ffffff;
+    --panel2: #fbfcfe;
+    --line: #e7eaf1;
+    --line2: #dde1eb;
+    --tx: #141824;
+    --tx2: #5c6478;
+    --tx3: #8890a3;
+    --accent: #3a5bd9;
+
+    /* Darkened so priority text stays legible on white. The hues still match the
+     * dark theme, so a P1 reads as the same red in both. */
+    --p1: #dc2626;
+    --p2: #ea580c;
+    --p3: #b45309;
+    --p4: #15803d;
+    --p5: #0369a1;
+
+    --shadow-lg: 0 24px 60px rgba(16, 24, 40, 0.14);
+  }
+
   * {
     box-sizing: border-box;
   }
 
   body {
+    @apply bg-bg text-tx;
     font-family:
       'Inter',
+      system-ui,
       -apple-system,
       sans-serif;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1c 50%, #0d0d0f 100%);
-    color: #ffffff;
+    -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
+    height: 10px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #1c1c1e;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #3a3a3c;
-    border-radius: 4px;
+    background: var(--line2);
+    border-radius: 6px;
+    border: 2px solid var(--bg);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--tx3);
+  }
+
+  /* One consistent focus ring across every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
 }
 
 @layer components {
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.4px] text-tx3;
   }
 }
 
 @layer utilities {
-  @keyframes pulse-glow {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
-  }
-
-  @keyframes glow {
-    0%,
-    100% {
-      box-shadow: 0 0 20px rgba(255, 59, 48, 0.3);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(255, 59, 48, 0.6);
-    }
-  }
-
   @keyframes fade-in {
     from {
       opacity: 0;
@@ -71,7 +119,7 @@
 
   @keyframes slide-up {
     from {
-      transform: translateY(20px);
+      transform: translateY(12px);
       opacity: 0;
     }
     to {
@@ -80,19 +128,18 @@
     }
   }
 
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite;
-  }
-
   .animate-fade-in {
-    animation: fade-in 0.2s ease;
+    animation: fade-in 0.18s ease;
   }
 
   .animate-slide-up {
-    animation: slide-up 0.3s ease;
+    animation: slide-up 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-slide-up {
+      animation: none;
+    }
   }
 }

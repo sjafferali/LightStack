@@ -19,7 +19,23 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          // Themed from the same variables as the rest of the app.
+          style: {
+            background: 'var(--panel)',
+            color: 'var(--tx)',
+            border: '1px solid var(--line)',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: 600,
+            boxShadow: 'var(--shadow-lg)',
+          },
+          success: { iconTheme: { primary: 'var(--p4)', secondary: 'var(--panel)' } },
+          error: { iconTheme: { primary: 'var(--p1)', secondary: 'var(--panel)' } },
+        }}
+      />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   </StrictMode>,

@@ -36,11 +36,12 @@ export function InovelliSwitch({ mode, leds, size = 'md', className }: InovelliS
   const lit = useLedIntensities(mode, leds)
 
   return (
-    <div className={clsx('relative select-none', WIDTHS[size], className)}>
+    <div className={clsx('relative shrink-0 select-none', WIDTHS[size], className)}>
+      {/* The photo is a pale switch, so it needs an edge to sit against in light mode. */}
       <img
         src={switchImage}
         alt="Inovelli switch"
-        className="block w-full rounded-lg"
+        className="block w-full rounded-xl border border-line2"
         draggable={false}
       />
 
@@ -85,7 +86,7 @@ export function LedLegend({ leds, mode, className }: LedLegendProps) {
 
   if (owners.size === 0) {
     return (
-      <p className={clsx('m-0 text-[12px] text-[#636366]', className)}>
+      <p className={clsx('m-0 text-[12px] text-tx3', className)}>
         No alerts showing. The LEDs are off.
       </p>
     )
@@ -109,15 +110,13 @@ export function LedLegend({ leds, mode, className }: LedLegendProps) {
           <li key={alertKey} className="flex items-center gap-2.5">
             <span
               className="h-6 w-1 shrink-0 rounded-full"
-              style={{
-                backgroundColor: `hsl(${Math.round((slot.color / 255) * 360)}, 100%, 55%)`,
-              }}
+              style={{ backgroundColor: inovelliColorToCss(slot.color) }}
             />
             <span className="min-w-0">
-              <span className="block truncate font-mono text-[12px] leading-tight text-white">
+              <span className="block truncate font-mono text-[12px] font-semibold leading-tight text-tx">
                 {alertKey}
               </span>
-              <span className="block truncate text-[11px] leading-tight text-[#8e8e93]">
+              <span className="block truncate text-[11px] leading-tight text-tx2">
                 {where} · {slot.effect.replace(/_/g, ' ')}
               </span>
             </span>

@@ -1,10 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-mode="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Python Web App Template</title>
+    <title>LightStack</title>
+    <script>
+      // Applied before first paint so the page never flashes the wrong theme.
+      (function () {
+        try {
+          var saved = localStorage.getItem('lightstack-mode')
+          var mode =
+            saved === 'light' || saved === 'dark'
+              ? saved
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+          document.documentElement.dataset.mode = mode
+        } catch (e) {
+          document.documentElement.dataset.mode = 'dark'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

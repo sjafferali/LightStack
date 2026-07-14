@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { ReactNode, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Card, Button, PriorityBadge, StatusIndicator, Modal } from '../components/ui'
+import clsx from 'clsx'
+import { Button, Card, Modal, PriorityBadge, StatusIndicator } from '../components/ui'
+import { PageHeader } from '../components/Layout'
+import { InovelliSwitch } from '../components/InovelliSwitch'
+import { LedPicker } from '../components/LedPicker'
 import { alertsApi, alertConfigsApi } from '../services/api'
-import { AlertConfig, AlertConfigUpdate, LedScope, PRIORITY_CONFIG } from '../types/alert'
+import { slotsForAlert } from '../constants/ledAnimations'
 import {
   LED_COLORS,
   LED_DURATIONS,
@@ -11,14 +15,12 @@ import {
   getColorByValue,
   isEffectValidForScope,
 } from '../constants/inovelli'
-import { InovelliSwitch } from '../components/InovelliSwitch'
-import { slotsForAlert } from '../constants/ledAnimations'
-import { LedPicker } from '../components/LedPicker'
+import { PRIORITIES, priorityColor, priorityLabel, priorityTint } from '../constants/priority'
+import { AlertConfig, AlertConfigUpdate, LedScope } from '../types/alert'
 
 function formatDate(timestamp: string | null): string {
   if (!timestamp) return 'Never'
-  const date = new Date(timestamp)
-  return date.toLocaleDateString('en-US', {
+  return new Date(timestamp).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -26,15 +28,95 @@ function formatDate(timestamp: string | null): string {
   })
 }
 
+const inputClass =
+  'w-full rounded-[10px] border border-line2 bg-panel2 px-3.5 py-2.5 text-[13px] text-tx ' +
+  'placeholder:text-tx3 focus:border-accent focus:outline-none'
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[12.5px] font-semibold text-tx">{label}</label>
+      {children}
+      {hint && <p className="m-0 mt-1.5 text-[11.5px] leading-relaxed text-tx2">{hint}</p>}
+    </div>
+  )
+}
+
+function Select({
+  value,
+  onChange,
+  children,
+}: {
+  value: string | number
+  onChange: (v: string) => void
+  children: ReactNode
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={clsx(inputClass, 'cursor-pointer appearance-none pr-9')}
+      >
+        {children}
+      </select>
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-tx2">
+        ▾
+      </span>
+    </div>
+  )
+}
+
+function PriorityPicker({ value, onChange }: { value: number; onChange: (p: number) => void }) {
+  return (
+    <div className="grid grid-cols-5 gap-2">
+      {PRIORITIES.map((p) => {
+        const on = value === p
+        return (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            aria-pressed={on}
+            className={clsx(
+              'rounded-[10px] border px-2 py-2.5 text-center font-bold transition-colors',
+              on ? 'border-transparent' : 'border-line2 hover:border-line2',
+            )}
+            style={
+              on
+                ? { background: priorityTint(p, 18), color: priorityColor(p) }
+                : { color: 'var(--tx2)' }
+            }
+          >
+            <span className="block text-[13px]">P{p}</span>
+            <span className="mt-0.5 block text-[10px] font-semibold opacity-80">
+              {priorityLabel(p)}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function Alerts() {
   const queryClient = useQueryClient()
+
   const [configAlert, setConfigAlert] = useState<AlertConfig | null>(null)
   const [triggerModal, setTriggerModal] = useState(false)
   const [newAlertKey, setNewAlertKey] = useState('')
-  const [newAlertPriority, setNewAlertPriority] = useState<number | null>(null)
+  const [newAlertPriority, setNewAlertPriority] = useState<number>(3)
   const [newAlertNote, setNewAlertNote] = useState('')
+
   const [editPriority, setEditPriority] = useState<number>(3)
-  // LED effect configuration state
   const [editLedScope, setEditLedScope] = useState<LedScope>('bar')
   const [editLedPositions, setEditLedPositions] = useState<number[]>([])
   const [editLedColor, setEditLedColor] = useState<number | null>(null)
@@ -43,19 +125,23 @@ export function Alerts() {
   const [editLedDuration, setEditLedDuration] = useState<number>(255)
 
   const availableEffects = effectsForScope(editLedScope)
-  // Bar-only effects have no per-LED equivalent, so switching to individual
-  // scope leaves the previously chosen effect unusable.
+  // Bar-only effects have no per-LED equivalent, so switching scope can leave
+  // the chosen effect unusable.
   const effectUnavailable = !isEffectValidForScope(editLedEffect, editLedScope)
   const missingPositions = editLedScope === 'individual' && editLedPositions.length === 0
   const configInvalid = effectUnavailable || missingPositions
 
-  // Queries
   const { data: summary = [], isLoading } = useQuery({
     queryKey: ['alert-configs', 'summary'],
     queryFn: alertConfigsApi.getSummary,
   })
 
-  // Mutations
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['alerts'] })
+    queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
+    queryClient.invalidateQueries({ queryKey: ['stats'] })
+  }
+
   const triggerMutation = useMutation({
     mutationFn: ({
       alertKey,
@@ -67,55 +153,49 @@ export function Alerts() {
       note?: string
     }) => alertsApi.trigger(alertKey, { priority, note }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alerts'] })
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
-      queryClient.invalidateQueries({ queryKey: ['stats'] })
+      invalidate()
       toast.success('Alert triggered')
       setTriggerModal(false)
       setNewAlertKey('')
-      setNewAlertPriority(null)
+      setNewAlertPriority(3)
       setNewAlertNote('')
     },
-    onError: () => toast.error('Failed to trigger alert'),
+    onError: () => toast.error("Couldn't trigger the alert"),
   })
 
   const clearMutation = useMutation({
     mutationFn: (alertKey: string) => alertsApi.clear(alertKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alerts'] })
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
-      queryClient.invalidateQueries({ queryKey: ['stats'] })
+      invalidate()
       toast.success('Alert cleared')
     },
-    onError: () => toast.error('Failed to clear alert'),
+    onError: () => toast.error("Couldn't clear the alert"),
   })
 
   const updateConfigMutation = useMutation({
     mutationFn: ({ alertKey, config }: { alertKey: string; config: AlertConfigUpdate }) =>
       alertConfigsApi.update(alertKey, config),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
-      toast.success('Configuration updated')
+      invalidate()
+      toast.success('Configuration saved')
       setConfigAlert(null)
     },
-    onError: () => toast.error('Failed to update configuration'),
+    onError: () => toast.error("Couldn't save the configuration"),
   })
 
   const deleteConfigMutation = useMutation({
     mutationFn: (alertKey: string) => alertConfigsApi.delete(alertKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alert-configs'] })
-      queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      invalidate()
       toast.success('Alert deleted')
       setConfigAlert(null)
     },
-    onError: () => toast.error('Failed to delete alert'),
+    onError: () => toast.error("Couldn't delete the alert"),
   })
 
-  const handleOpenConfig = (alert: AlertConfig) => {
+  const openConfig = (alert: AlertConfig) => {
     setConfigAlert(alert)
     setEditPriority(alert.default_priority)
-    // Initialize LED settings
     setEditLedScope(alert.led_scope ?? 'bar')
     setEditLedPositions(alert.led_positions ?? [])
     setEditLedColor(alert.led_color)
@@ -126,397 +206,292 @@ export function Alerts() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="m-0 mb-1 text-xl font-bold">All Alert Keys</h2>
-          <p className="m-0 text-[13px] text-[#8e8e93]">
-            Configure priorities and manage all registered alerts
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setTriggerModal(true)}>
-          + Trigger Alert
-        </Button>
-      </div>
+      <PageHeader
+        title="Alerts"
+        subtitle="Set what each alert looks like on the switch, and where it shows."
+        action={
+          <Button variant="primary" onClick={() => setTriggerModal(true)}>
+            Trigger alert
+          </Button>
+        }
+      />
 
       <Card noPadding className="overflow-hidden">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-[#2c2c2e]">
-              {[
-                'Status',
-                'Alert Key',
-                'Default Priority',
-                'Last Triggered',
-                'Total Triggers',
-                'Actions',
-              ].map((header) => (
-                <th
-                  key={header}
-                  className="border-b border-[#3a3a3c] px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93]"
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-[#8e8e93]">
-                  Loading...
-                </td>
-              </tr>
-            ) : summary.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-[#8e8e93]">
-                  No alerts registered yet. Trigger an alert to get started.
-                </td>
-              </tr>
-            ) : (
-              summary.map((alert, idx) => (
-                <tr
-                  key={alert.alert_key}
-                  className={`${
-                    idx < summary.length - 1 ? 'border-b border-[#2c2c2e]' : ''
-                  } ${alert.is_active ? 'bg-[rgba(255,59,48,0.05)]' : ''}`}
-                >
-                  <td className="px-5 py-4">
-                    <StatusIndicator active={alert.is_active} />
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="font-mono font-medium">{alert.alert_key}</span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <PriorityBadge priority={alert.default_priority} size="small" />
-                  </td>
-                  <td className="px-5 py-4 text-[13px] text-[#8e8e93]">
-                    {formatDate(alert.last_triggered_at)}
-                  </td>
-                  <td className="px-5 py-4 font-mono font-semibold">{alert.trigger_count}</td>
-                  <td className="px-5 py-4">
-                    <div className="flex gap-2">
-                      <Button
-                        size="small"
-                        variant="ghost"
-                        onClick={() =>
-                          handleOpenConfig({
-                            id: 0,
-                            alert_key: alert.alert_key,
-                            name: alert.name,
-                            description: null,
-                            default_priority: alert.default_priority,
-                            led_scope: alert.led_scope,
-                            led_positions: alert.led_positions,
-                            led_color: alert.led_color,
-                            led_effect: alert.led_effect,
-                            led_brightness: alert.led_brightness,
-                            led_duration: alert.led_duration,
-                            created_at: '',
-                            updated_at: '',
-                            trigger_count: alert.trigger_count,
-                          })
-                        }
+        {isLoading ? (
+          <p className="m-0 p-10 text-center text-[13px] text-tx2">Loading…</p>
+        ) : summary.length === 0 ? (
+          <div className="flex flex-col items-center gap-1.5 p-12 text-center">
+            <p className="m-0 text-[14px] font-semibold text-tx">No alerts yet</p>
+            <p className="m-0 max-w-sm text-[13px] text-tx2">
+              Trigger an alert to register it. It will appear here, ready to configure.
+            </p>
+            <Button variant="primary" className="mt-3" onClick={() => setTriggerModal(true)}>
+              Trigger alert
+            </Button>
+          </div>
+        ) : (
+          <ul className="m-0 list-none p-0">
+            {summary.map((alert) => (
+              <li
+                key={alert.alert_key}
+                className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-line px-5 py-4 last:border-b-0"
+              >
+                <StatusIndicator active={alert.is_active} />
+
+                <div className="min-w-[180px] flex-1">
+                  <div className="flex items-center gap-2">
+                    <b className="truncate font-mono text-[13.5px] font-semibold text-tx">
+                      {alert.alert_key}
+                    </b>
+                    {alert.is_active && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                        style={{ background: priorityTint(4), color: priorityColor(4) }}
                       >
-                        Configure
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="success"
-                        onClick={() => triggerMutation.mutate({ alertKey: alert.alert_key })}
-                        disabled={triggerMutation.isPending}
-                      >
-                        Trigger
-                      </Button>
-                      {alert.is_active && (
-                        <Button
-                          size="small"
-                          variant="danger"
-                          onClick={() => clearMutation.mutate(alert.alert_key)}
-                          disabled={clearMutation.isPending}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <small className="mt-0.5 block text-[12px] text-tx2">
+                    {alert.led_scope === 'bar'
+                      ? 'Whole bar'
+                      : `LEDs ${(alert.led_positions ?? []).join(', ') || '—'}`}
+                    {alert.led_effect ? ` · ${alert.led_effect.replace(/_/g, ' ')}` : ''} ·{' '}
+                    {alert.trigger_count} triggers · {formatDate(alert.last_triggered_at)}
+                  </small>
+                </div>
+
+                <PriorityBadge priority={alert.default_priority} />
+
+                <div className="flex gap-2">
+                  <Button
+                    size="small"
+                    variant="ghost"
+                    onClick={() =>
+                      openConfig({
+                        id: 0,
+                        alert_key: alert.alert_key,
+                        name: alert.name,
+                        description: null,
+                        default_priority: alert.default_priority,
+                        led_scope: alert.led_scope,
+                        led_positions: alert.led_positions,
+                        led_color: alert.led_color,
+                        led_effect: alert.led_effect,
+                        led_brightness: alert.led_brightness,
+                        led_duration: alert.led_duration,
+                        created_at: '',
+                        updated_at: '',
+                        trigger_count: alert.trigger_count,
+                      })
+                    }
+                  >
+                    Configure
+                  </Button>
+                  {alert.is_active ? (
+                    <Button
+                      size="small"
+                      variant="danger"
+                      onClick={() => clearMutation.mutate(alert.alert_key)}
+                      disabled={clearMutation.isPending}
+                    >
+                      Clear
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="default"
+                      onClick={() => triggerMutation.mutate({ alertKey: alert.alert_key })}
+                      disabled={triggerMutation.isPending}
+                    >
+                      Trigger
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
-      {/* Configure Alert Modal */}
+      {/* Configure */}
       <Modal
         isOpen={!!configAlert}
         onClose={() => setConfigAlert(null)}
-        title={`Configure: ${configAlert?.alert_key || ''}`}
+        title={configAlert?.alert_key ?? ''}
+        description="Choose where this alert shows on the switch and what it looks like."
+        size="wide"
       >
         {configAlert && (
           <div className="flex flex-col gap-6">
-            <div>
-              <label className="mb-2 block text-[13px] font-semibold">Default Priority</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((p) => (
-                  <button
-                    key={p}
-                    className={`flex-1 cursor-pointer rounded-lg border-2 p-3 font-mono font-bold transition-all ${
-                      editPriority === p
-                        ? `border-[${PRIORITY_CONFIG[p].color}]`
-                        : 'border-[#3a3a3c]'
-                    }`}
-                    style={{
-                      background: editPriority === p ? PRIORITY_CONFIG[p].bg : '#2c2c2e',
-                      borderColor: editPriority === p ? PRIORITY_CONFIG[p].color : '#3a3a3c',
-                      color: PRIORITY_CONFIG[p].color,
-                    }}
-                    onClick={() => setEditPriority(p)}
-                  >
-                    P{p}
-                    <div className="mt-1 text-[10px] opacity-80">{PRIORITY_CONFIG[p].label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Field label="Default priority">
+              <PriorityPicker value={editPriority} onChange={setEditPriority} />
+            </Field>
 
-            {/* LED Effect Configuration */}
-            <div className="border-t border-[#3a3a3c] pt-6">
-              <h3 className="mb-1 text-[15px] font-semibold">Inovelli LED Effect</h3>
-              <p className="mb-4 text-[13px] text-[#8e8e93]">
-                Choose where this alert shows on the switch and what it looks like.
-              </p>
-
-              <div className="grid gap-6 md:grid-cols-[1fr_auto]">
-                <div>
-                  {/* Where the alert shows */}
-                  <div className="mb-4">
-                    <label className="mb-2 block text-[13px] font-semibold">Shows on</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(
-                        [
-                          {
-                            scope: 'bar' as LedScope,
-                            title: 'Whole bar',
-                            blurb: 'Takes over the switch',
-                          },
-                          {
-                            scope: 'individual' as LedScope,
-                            title: 'Specific LEDs',
-                            blurb: 'Shares with other alerts',
-                          },
-                        ] satisfies { scope: LedScope; title: string; blurb: string }[]
-                      ).map((opt) => (
-                        <button
-                          key={opt.scope}
-                          type="button"
-                          onClick={() => setEditLedScope(opt.scope)}
-                          aria-pressed={editLedScope === opt.scope}
-                          className={`rounded-lg border px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a84ff] ${
-                            editLedScope === opt.scope
-                              ? 'border-[#0a84ff] bg-[#0a84ff]/10'
-                              : 'border-[#3a3a3c] bg-[#2c2c2e] hover:border-[#48484a]'
-                          }`}
-                        >
-                          <div className="text-[13px] font-semibold text-white">{opt.title}</div>
-                          <div className="mt-0.5 text-[11px] text-[#8e8e93]">{opt.blurb}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-[11px] leading-relaxed text-[#8e8e93]">
-                      A whole-bar alert covers the entire switch, hiding any per-LED alerts while it
-                      is active — whatever their priority.
-                    </p>
-                  </div>
-
-                  {/* LED selection */}
-                  {editLedScope === 'individual' && (
-                    <div className="mb-4">
-                      <label className="mb-2 block text-[13px] font-semibold">LEDs</label>
-                      <LedPicker
-                        selected={editLedPositions}
-                        onChange={setEditLedPositions}
-                        color={editLedColor ?? 0}
-                      />
-                      {missingPositions && (
-                        <p className="mt-2 text-[11px] text-[#ff9500]">
-                          Pick at least one LED for this alert to show on.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Color Selection */}
-                  <div className="mb-4">
-                    <label className="mb-2 block text-[13px] font-semibold">Color</label>
-                    <div className="relative">
-                      <select
-                        value={editLedColor ?? ''}
-                        onChange={(e) =>
-                          setEditLedColor(e.target.value === '' ? null : Number(e.target.value))
+            <div className="grid gap-6 md:grid-cols-[1fr_220px]">
+              <div className="flex flex-col gap-5">
+                <Field
+                  label="Shows on"
+                  hint="A whole-bar alert covers the entire switch, hiding any per-LED alerts while it is active — whatever their priority."
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        { scope: 'bar', title: 'Whole bar', blurb: 'Takes over the switch' },
+                        {
+                          scope: 'individual',
+                          title: 'Specific LEDs',
+                          blurb: 'Shares with other alerts',
+                        },
+                      ] as { scope: LedScope; title: string; blurb: string }[]
+                    ).map((opt) => (
+                      <button
+                        key={opt.scope}
+                        type="button"
+                        onClick={() => setEditLedScope(opt.scope)}
+                        aria-pressed={editLedScope === opt.scope}
+                        className={clsx(
+                          'rounded-[10px] border px-3 py-2.5 text-left transition-colors',
+                          editLedScope === opt.scope
+                            ? 'border-accent'
+                            : 'border-line2 bg-panel2 hover:border-line2',
+                        )}
+                        style={
+                          editLedScope === opt.scope
+                            ? {
+                                background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+                              }
+                            : undefined
                         }
-                        className="w-full appearance-none rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 pr-10 text-sm text-white focus:border-[#0a84ff] focus:outline-none"
                       >
-                        <option value="">Not configured</option>
-                        {LED_COLORS.map((color) => (
-                          <option key={color.value} value={color.value}>
-                            {color.label}
+                        <span className="block text-[13px] font-semibold text-tx">{opt.title}</span>
+                        <span className="mt-0.5 block text-[11px] text-tx2">{opt.blurb}</span>
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                {editLedScope === 'individual' && (
+                  <Field
+                    label="LEDs"
+                    hint={
+                      missingPositions ? (
+                        <span className="text-p2">
+                          Pick at least one LED to show this alert on.
+                        </span>
+                      ) : (
+                        'LED 1 is the bottom of the switch, LED 7 the top.'
+                      )
+                    }
+                  >
+                    <LedPicker
+                      selected={editLedPositions}
+                      onChange={setEditLedPositions}
+                      color={editLedColor ?? 0}
+                    />
+                  </Field>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Color">
+                    <div className="relative">
+                      <Select
+                        value={editLedColor ?? ''}
+                        onChange={(v) => setEditLedColor(v === '' ? null : Number(v))}
+                      >
+                        <option value="">Not set</option>
+                        {LED_COLORS.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                       {editLedColor !== null && (
-                        <div
-                          className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-[#3a3a3c]"
-                          style={{
-                            backgroundColor: getColorByValue(editLedColor)?.hex || '#000',
-                          }}
+                        <span
+                          className="pointer-events-none absolute right-8 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-line2"
+                          style={{ background: getColorByValue(editLedColor)?.hex }}
                         />
                       )}
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8e8e93]">
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
                     </div>
-                  </div>
+                  </Field>
 
-                  {/* Effect Selection */}
-                  <div className="mb-4">
-                    <label className="mb-2 block text-[13px] font-semibold">Effect</label>
-                    <div className="relative">
-                      <select
-                        value={editLedEffect ?? ''}
-                        onChange={(e) =>
-                          setEditLedEffect(e.target.value === '' ? null : e.target.value)
-                        }
-                        className="w-full appearance-none rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 pr-10 text-sm text-white focus:border-[#0a84ff] focus:outline-none"
-                      >
-                        <option value="">Not configured</option>
-                        {availableEffects.map((effect) => (
-                          <option key={effect.value} value={effect.value}>
-                            {effect.label}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8e8e93]">
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    {effectUnavailable && (
-                      <p className="mt-2 text-[11px] text-[#ff9500]">
-                        A single LED cannot run “{editLedEffect}”. Pick one of the effects listed
-                        above.
-                      </p>
-                    )}
-                  </div>
+                  <Field
+                    label="Effect"
+                    hint={
+                      effectUnavailable ? (
+                        <span className="text-p2">
+                          A single LED cannot run “{editLedEffect?.replace(/_/g, ' ')}”. Choose one
+                          of the effects listed.
+                        </span>
+                      ) : undefined
+                    }
+                  >
+                    <Select
+                      value={editLedEffect ?? ''}
+                      onChange={(v) => setEditLedEffect(v === '' ? null : v)}
+                    >
+                      <option value="">Not set</option>
+                      {availableEffects.map((e) => (
+                        <option key={e.value} value={e.value}>
+                          {e.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
 
-                  {/* Brightness Slider */}
-                  <div className="mb-4">
-                    <label className="mb-2 flex items-center justify-between text-[13px] font-semibold">
-                      <span>Brightness</span>
-                      <span className="font-mono text-[#8e8e93]">{editLedBrightness}%</span>
-                    </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={`Brightness — ${editLedBrightness}%`}>
                     <input
                       type="range"
-                      min="0"
-                      max="100"
+                      min={0}
+                      max={100}
                       value={editLedBrightness}
                       onChange={(e) => setEditLedBrightness(Number(e.target.value))}
-                      className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#3a3a3c] accent-[#0a84ff]"
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-line2 accent-[var(--accent)]"
                     />
-                    <div className="mt-1 flex justify-between text-[10px] text-[#8e8e93]">
-                      <span>0%</span>
-                      <span>50%</span>
-                      <span>100%</span>
-                    </div>
-                  </div>
+                  </Field>
 
-                  {/* Duration Selection */}
-                  <div className="mb-2">
-                    <label className="mb-2 block text-[13px] font-semibold">Duration</label>
-                    <div className="relative">
-                      <select
-                        value={editLedDuration}
-                        onChange={(e) => setEditLedDuration(Number(e.target.value))}
-                        className="w-full appearance-none rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 pr-10 text-sm text-white focus:border-[#0a84ff] focus:outline-none"
-                      >
-                        {LED_DURATIONS.map((duration) => (
-                          <option key={duration.value} value={duration.value}>
-                            {duration.label}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8e8e93]">
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
+                  <Field label="Duration">
+                    <Select value={editLedDuration} onChange={(v) => setEditLedDuration(Number(v))}>
+                      {LED_DURATIONS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
                 </div>
+              </div>
 
-                {/* Live preview of this alert on its own */}
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-[#2c2c2e] bg-[#141416] p-5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93]">
-                    Preview
-                  </span>
-                  <InovelliSwitch
-                    mode={editLedScope}
-                    size="md"
-                    leds={slotsForAlert({
-                      scope: editLedScope,
-                      positions: editLedPositions,
-                      color: editLedColor ?? 0,
-                      effect: effectUnavailable ? 'solid' : (editLedEffect ?? 'solid'),
-                      level: editLedBrightness,
-                      alertKey: configAlert.alert_key,
-                    })}
-                  />
-                  <span className="max-w-[11rem] text-center text-[11px] leading-relaxed text-[#636366]">
-                    This alert on its own, with no other alerts active.
-                  </span>
-                </div>
+              {/* Preview */}
+              <div className="flex flex-col items-center gap-3 self-start rounded-2xl border border-line bg-panel2 p-5">
+                <span className="eyebrow">Preview</span>
+                <InovelliSwitch
+                  mode={editLedScope}
+                  size="md"
+                  leds={slotsForAlert({
+                    scope: editLedScope,
+                    positions: editLedPositions,
+                    color: editLedColor ?? 0,
+                    effect: effectUnavailable ? 'solid' : (editLedEffect ?? 'solid'),
+                    level: editLedBrightness,
+                    alertKey: configAlert.alert_key,
+                  })}
+                />
+                <span className="text-center text-[11.5px] leading-relaxed text-tx3">
+                  This alert on its own, with no others active.
+                </span>
               </div>
             </div>
 
-            <div className="mt-2 flex items-center justify-between border-t border-[#3a3a3c] pt-6">
+            <div className="flex items-center justify-between gap-3 border-t border-line pt-5">
               <Button
                 variant="danger"
                 onClick={() => deleteConfigMutation.mutate(configAlert.alert_key)}
                 disabled={deleteConfigMutation.isPending}
               >
-                Delete Alert Key
+                Delete
               </Button>
               <div className="flex gap-3">
                 <Button variant="default" onClick={() => setConfigAlert(null)}>
@@ -524,6 +499,7 @@ export function Alerts() {
                 </Button>
                 <Button
                   variant="primary"
+                  disabled={updateConfigMutation.isPending || configInvalid}
                   onClick={() =>
                     updateConfigMutation.mutate({
                       alertKey: configAlert.alert_key,
@@ -538,9 +514,8 @@ export function Alerts() {
                       },
                     })
                   }
-                  disabled={updateConfigMutation.isPending || configInvalid}
                 >
-                  Save Changes
+                  Save changes
                 </Button>
               </div>
             </div>
@@ -548,80 +523,53 @@ export function Alerts() {
         )}
       </Modal>
 
-      {/* Trigger Alert Modal */}
-      <Modal isOpen={triggerModal} onClose={() => setTriggerModal(false)} title="Trigger Alert">
-        <div className="flex flex-col gap-6">
-          <div>
-            <label className="mb-2 block text-[13px] font-semibold">Alert Key</label>
+      {/* Trigger */}
+      <Modal
+        isOpen={triggerModal}
+        onClose={() => setTriggerModal(false)}
+        title="Trigger alert"
+        description="Triggering an unknown key registers it automatically."
+      >
+        <div className="flex flex-col gap-5">
+          <Field label="Alert key">
             <input
-              type="text"
-              placeholder="e.g., garage_door_open"
+              autoFocus
               value={newAlertKey}
               onChange={(e) => setNewAlertKey(e.target.value)}
-              className="w-full rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 font-mono text-sm text-white focus:border-[#0a84ff] focus:outline-none"
+              placeholder="water_leak_detected"
+              className={clsx(inputClass, 'font-mono')}
             />
-            <p className="m-0 mt-2 text-xs text-[#8e8e93]">
-              New keys will be automatically registered
-            </p>
-          </div>
+          </Field>
 
-          <div>
-            <label className="mb-2 block text-[13px] font-semibold">
-              Priority Override (optional)
-            </label>
-            <div className="flex gap-2">
-              <button
-                className={`flex-1 cursor-pointer rounded-lg border-2 p-2.5 text-xs font-semibold ${
-                  newAlertPriority === null
-                    ? 'border-[#0a84ff] text-[#0a84ff]'
-                    : 'border-[#3a3a3c] text-[#8e8e93]'
-                } bg-[#2c2c2e]`}
-                onClick={() => setNewAlertPriority(null)}
-              >
-                Use Default
-              </button>
-              {[1, 2, 3, 4, 5].map((p) => (
-                <button
-                  key={p}
-                  className={`cursor-pointer rounded-lg border-2 px-3.5 py-2.5 font-mono font-bold ${
-                    newAlertPriority === p ? 'border-current' : 'border-[#3a3a3c]'
-                  } bg-[#2c2c2e]`}
-                  style={{ color: PRIORITY_CONFIG[p].color }}
-                  onClick={() => setNewAlertPriority(p)}
-                >
-                  P{p}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Field label="Priority">
+            <PriorityPicker value={newAlertPriority} onChange={setNewAlertPriority} />
+          </Field>
 
-          <div>
-            <label className="mb-2 block text-[13px] font-semibold">Note (optional)</label>
-            <textarea
-              placeholder="Additional context for this alert..."
-              rows={3}
+          <Field label="Note (optional)">
+            <input
               value={newAlertNote}
               onChange={(e) => setNewAlertNote(e.target.value)}
-              className="w-full resize-y rounded-lg border border-[#3a3a3c] bg-[#2c2c2e] px-4 py-3 text-sm text-white focus:border-[#0a84ff] focus:outline-none"
+              placeholder="Why this fired"
+              className={inputClass}
             />
-          </div>
+          </Field>
 
-          <div className="mt-2 flex justify-end gap-3">
+          <div className="flex justify-end gap-3">
             <Button variant="default" onClick={() => setTriggerModal(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
+              disabled={!newAlertKey.trim() || triggerMutation.isPending}
               onClick={() =>
                 triggerMutation.mutate({
-                  alertKey: newAlertKey,
-                  priority: newAlertPriority ?? undefined,
+                  alertKey: newAlertKey.trim(),
+                  priority: newAlertPriority,
                   note: newAlertNote || undefined,
                 })
               }
-              disabled={!newAlertKey.trim() || triggerMutation.isPending}
             >
-              Trigger Alert
+              Trigger
             </Button>
           </div>
         </div>

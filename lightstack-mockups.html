@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LightStack — Aurora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --p1: #ff3b30; --p2: #ff9500; --p3: #ffcc00; --p4: #34c759; --p5: #5ac8fa; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--stage); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    transition: background .3s ease, color .3s ease;
+  }
+
+  /* ============ CONTROL BAR ============ */
+  .controls {
+    position: sticky; top: 0; z-index: 200;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 14px 22px; background: var(--ctrl-bg);
+    border-bottom: 1px solid var(--ctrl-border); backdrop-filter: blur(14px);
+  }
+  .controls .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .controls .brand .dot { width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--p2), var(--p1));
+    display: grid; place-items: center; color: #fff; font-size: 15px; }
+  .controls .brand b { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  .controls .brand span { font-size: 11px; color: var(--ctrl-mut); font-weight: 500; }
+  .modewrap { display: flex; align-items: center; gap: 9px; }
+  .modewrap label { font-size: 12px; font-weight: 600; color: var(--ctrl-mut); }
+  .switch { position: relative; width: 50px; height: 28px; border-radius: 20px; cursor: pointer;
+    background: var(--seg-bg); border: 1px solid var(--ctrl-border); transition: background .2s; }
+  .switch .knob { position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--knob); display: grid; place-items: center; font-size: 12px; color: var(--stage);
+    transition: transform .24s cubic-bezier(.4,1.3,.5,1); }
+  html[data-mode="light"] .switch .knob { transform: translateX(22px); }
+
+  html[data-mode="dark"]  { --ctrl-bg: rgba(16,18,27,.86); --ctrl-border: #262b3d; --ctrl-mut:#8b93a7; --seg-bg:#171a26; --knob:#e7ebf5; --stage:#0a0c13; --ink:#eef1f8; }
+  html[data-mode="light"] { --ctrl-bg: rgba(255,255,255,.86); --ctrl-border:#e6e8ee; --ctrl-mut:#6b7280; --seg-bg:#f1f2f6; --knob:#1f2430; --stage:#eceef3; --ink:#1a1d26; }
+
+  .stage-pad { padding: 26px; max-width: 1240px; margin: 0 auto; }
+  .caption { margin: 0 auto 18px; max-width: 1240px; padding: 0 4px; }
+  .caption h2 { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  .caption p { font-size: 13px; color: var(--ctrl-mut); margin-top: 3px; max-width: 760px; }
+
+  /* ===================== AURORA ===================== */
+  .aurora { --bg:#0b0e17; --panel:#121624; --panel2:#161b2b; --line:#232a3d; --line2:#2c3448;
+    --tx:#e9edf7; --tx2:#9aa3ba; --tx3:#69718a; --accent:#6d8bff; font-family:'Inter',sans-serif; }
+  html[data-mode="light"] .aurora { --bg:#f5f6fa; --panel:#ffffff; --panel2:#fbfcfe; --line:#e7eaf1; --line2:#dde1eb;
+    --tx:#141824; --tx2:#5c6478; --tx3:#8890a3; --accent:#3a5bd9; }
+  .aurora-shell { display: grid; grid-template-columns: 232px 1fr; min-height: 660px;
+    background: var(--bg); border-radius: 18px; overflow: hidden; border: 1px solid var(--line); }
+  .a-side { background: var(--panel); border-right: 1px solid var(--line); padding: 22px 16px; display: flex; flex-direction: column; }
+  .a-logo { display: flex; align-items: center; gap: 11px; padding: 4px 8px 22px; }
+  .a-logo .m { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg,var(--p2),var(--p1)); display:grid; place-items:center; color:#fff; font-size:18px; }
+  .a-logo b { font-size: 16px; color: var(--tx); font-weight: 700; letter-spacing:-.2px; }
+  .a-logo small { display:block; font-size: 10.5px; color: var(--tx3); font-weight:600; letter-spacing:.5px; }
+  .a-nav { display: flex; flex-direction: column; gap: 3px; }
+  .a-nav a { display:flex; align-items:center; gap:11px; padding: 10px 12px; border-radius: 10px; color: var(--tx2); font-size: 13.5px; font-weight: 600; text-decoration:none; transition:.15s; cursor:pointer; }
+  .a-nav a i { width: 18px; text-align:center; font-style: normal; opacity:.9; }
+  .a-nav a:hover { background: var(--panel2); color: var(--tx); }
+  .a-nav a.sel { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .a-side .foot { margin-top: auto; padding: 12px; border-radius: 11px; background: var(--panel2); border:1px solid var(--line); }
+  .a-side .foot .row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--tx2); font-weight:600; }
+  .a-side .foot .row .live { width:8px;height:8px;border-radius:50%;background:var(--p4); box-shadow:0 0 0 3px color-mix(in srgb, var(--p4) 25%, transparent); }
+  .a-main { padding: 26px 30px; overflow:auto; }
+  .a-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
+  .a-head h1 { font-size: 22px; font-weight: 700; color: var(--tx); letter-spacing:-.4px; }
+  .a-head p { font-size: 13px; color: var(--tx2); margin-top:2px; }
+  .a-btn { font: inherit; font-size:13px; font-weight:600; padding: 9px 16px; border-radius:10px; border:1px solid var(--line2); background:var(--panel); color:var(--tx); cursor:pointer; transition:.15s; }
+  .a-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .a-stats { display:grid; grid-template-columns: repeat(4,1fr); gap:14px; margin-bottom: 18px; }
+  .a-stat { background: var(--panel); border:1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .a-stat .lab { font-size: 12px; color: var(--tx2); font-weight:600; display:flex; align-items:center; gap:7px; }
+  .a-stat .lab i { font-style:normal; font-size:15px; }
+  .a-stat .num { font-size: 30px; font-weight: 700; color: var(--tx); margin-top: 9px; letter-spacing:-1px; }
+  .a-stat .sub { font-size: 11.5px; color: var(--tx3); margin-top:2px; font-weight:500; }
+  .a-grid { display:grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .a-card { background: var(--panel); border:1px solid var(--line); border-radius:16px; padding: 20px 22px; }
+  .a-card > .ttl { font-size: 12px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color: var(--tx3); margin-bottom: 16px; display:flex; align-items:center; justify-content:space-between; }
+  .a-hero .now { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .a-hero .now h2 { font-size: 26px; font-weight:700; color:var(--tx); letter-spacing:-.5px; }
+  .a-hero .now .meta { font-size:13px; color: var(--tx2); margin-top:7px; }
+  .a-pill { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; padding:5px 11px; border-radius:20px; white-space:nowrap; }
+  .a-led { margin-top: 20px; }
+  .a-led .cap { font-size:11px; color:var(--tx3); font-weight:600; letter-spacing:.4px; text-transform:uppercase; margin-bottom:9px; }
+  .a-placeholder { height: 120px; border-radius: 12px; border: 1.5px dashed var(--line2);
+    background: color-mix(in srgb, var(--tx) 3%, transparent);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color: var(--tx3); }
+  .a-placeholder .ic { font-size:22px; opacity:.7; }
+  .a-placeholder .lbl { font-size:12.5px; font-weight:600; letter-spacing:.2px; }
+  .a-ledmeta { display:flex; gap:18px; margin-top:14px; flex-wrap:wrap; }
+  .a-ledmeta div { font-size:12px; color:var(--tx2); }
+  .a-ledmeta div b { color: var(--tx); display:block; font-size:13.5px; margin-top:2px; font-weight:600; }
+  .a-list { display:flex; flex-direction:column; gap:2px; }
+  .a-row { display:flex; align-items:center; gap:13px; padding: 12px 10px; border-radius:11px; transition:.14s; cursor:pointer; }
+  .a-row:hover { background: var(--panel2); }
+  .a-row .bar { width:4px; align-self:stretch; border-radius:4px; }
+  .a-row .info { flex:1; min-width:0; }
+  .a-row .info b { font-size: 13.5px; color:var(--tx); font-weight:600; display:block; }
+  .a-row .info small { font-size:12px; color: var(--tx2); }
+  .a-row .tag { font-size:11px; font-weight:700; padding:3px 9px; border-radius:14px; }
+  .a-row .x { width:28px;height:28px;border-radius:8px;border:1px solid var(--line2); background:transparent; color:var(--tx2); cursor:pointer; display:grid;place-items:center; font-size:14px; }
+  .a-row .x:hover { border-color: var(--p1); color: var(--p1); }
+
+  @media (max-width: 900px) {
+    .a-stats { grid-template-columns: repeat(2,1fr); }
+    .a-grid { grid-template-columns: 1fr; }
+    .aurora-shell { grid-template-columns: 1fr; }
+    .a-side { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="brand">
+    <div class="dot">⚡</div>
+    <div><b>LightStack</b><br><span>Aurora — dashboard concept</span></div>
+  </div>
+  <div class="modewrap">
+    <label id="modelabel">Dark</label>
+    <div class="switch" id="modeswitch" role="switch" aria-label="Toggle light and dark mode">
+      <div class="knob" id="knob">☾</div>
+    </div>
+  </div>
+</div>
+
+<div class="stage-pad">
+
+  <div class="caption">
+    <h2>Aurora — sidebar console</h2>
+    <p>Calm and professional. Persistent left nav, quiet slate palette, and a hero showing the alert currently on your switches. Toggle light/dark in the top bar.</p>
+  </div>
+
+  <div class="aurora">
+    <div class="aurora-shell">
+      <aside class="a-side">
+        <div class="a-logo"><div class="m">⚡</div><div><b>LightStack</b><small>ALERT MANAGER</small></div></div>
+        <nav class="a-nav">
+          <a class="sel"><i>◱</i> Dashboard</a>
+          <a><i>◔</i> Alerts</a>
+          <a><i>≡</i> History</a>
+          <a><i>⚙</i> Configuration</a>
+        </nav>
+        <div class="foot"><div class="row"><span class="live"></span> Home Assistant connected</div></div>
+      </aside>
+      <main class="a-main">
+        <div class="a-head">
+          <div><h1>Dashboard</h1><p>3 active alerts · updated just now</p></div>
+          <button class="a-btn">Clear all</button>
+        </div>
+        <div class="a-stats">
+          <div class="a-stat"><div class="lab"><i>◔</i>Active now</div><div class="num">3</div><div class="sub">across 9 alert keys</div></div>
+          <div class="a-stat"><div class="lab"><i style="color:var(--p1)">◆</i>Critical</div><div class="num" style="color:var(--p1)">1</div><div class="sub">water leak detected</div></div>
+          <div class="a-stat"><div class="lab"><i>↯</i>Today</div><div class="num">18</div><div class="sub">total triggers</div></div>
+          <div class="a-stat"><div class="lab"><i>✓</i>Auto-cleared</div><div class="num">12</div><div class="sub">resolved on their own</div></div>
+        </div>
+        <div class="a-grid">
+          <div class="a-card a-hero">
+            <div class="ttl">Currently displaying on switches</div>
+            <div class="now">
+              <div>
+                <h2 style="color:var(--p1)">Water leak detected</h2>
+                <div class="meta">Triggered 22:00 · “Critical water leak sensor alert”</div>
+              </div>
+              <span class="a-pill" style="background:color-mix(in srgb,var(--p1) 18%,transparent);color:var(--p1)">● P1 · Critical</span>
+            </div>
+            <div class="a-led">
+              <div class="cap">LED output</div>
+              <div class="a-placeholder">
+                <div class="ic">▦</div>
+                <div class="lbl">Image here</div>
+              </div>
+              <div class="a-ledmeta">
+                <div>Color<b>Red</b></div>
+                <div>Effect<b>Fast siren</b></div>
+                <div>Brightness<b>100%</b></div>
+                <div>Duration<b>Indefinite</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="a-card">
+            <div class="ttl">Active alerts <span style="color:var(--tx2)">3</span></div>
+            <div class="a-list">
+              <div class="a-row">
+                <div class="bar" style="background:var(--p1)"></div>
+                <div class="info"><b>water_leak_detected</b><small>displaying now · 22:00</small></div>
+                <span class="tag" style="background:color-mix(in srgb,var(--p1) 16%,transparent);color:var(--p1)">P1</span>
+                <button class="x">✕</button>
+              </div>
+              <div class="a-row">
+                <div class="bar" style="background:var(--p2)"></div>
+                <div class="info"><b>garage_door_open</b><small>queued · 21:42</small></div>
+                <span class="tag" style="background:color-mix(in srgb,var(--p2) 16%,transparent);color:var(--p2)">P2</span>
+                <button class="x">✕</button>
+              </div>
+              <div class="a-row">
+                <div class="bar" style="background:var(--p5)"></div>
+                <div class="info"><b>mailbox_opened</b><small>queued · 21:15</small></div>
+                <span class="tag" style="background:color-mix(in srgb,var(--p5) 16%,transparent);color:var(--p5)">P5</span>
+                <button class="x">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const html = document.documentElement;
+  const sw = document.getElementById('modeswitch');
+  const knob = document.getElementById('knob');
+  const label = document.getElementById('modelabel');
+  function setMode(m){ html.dataset.mode = m; knob.textContent = m === 'dark' ? '☾' : '☀'; label.textContent = m === 'dark' ? 'Dark' : 'Light'; }
+  sw.addEventListener('click', () => setMode(html.dataset.mode === 'dark' ? 'light' : 'dark'));
+</script>
+</body>
+</html>

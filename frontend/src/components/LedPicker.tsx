@@ -54,31 +54,28 @@ export function LedPicker({ selected, onChange, color, disabled }: LedPickerProp
               aria-pressed={on}
               aria-label={`LED ${led}`}
               className={clsx(
-                'group flex h-8 w-28 items-center gap-2 rounded-md border px-2 text-left transition-all',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a84ff]',
+                'group flex h-8 w-28 items-center gap-2 rounded-lg border px-2 text-left transition-colors',
                 disabled && 'cursor-not-allowed opacity-40',
-                on
-                  ? 'border-transparent bg-[#2c2c2e]'
-                  : 'border-[#2c2c2e] bg-[#141416] hover:border-[#3a3a3c]',
+                on ? 'border-accent bg-panel2' : 'border-line bg-panel2 hover:border-line2',
               )}
             >
               <span
                 className="h-4 w-1.5 shrink-0 rounded-full transition-all"
                 style={{
-                  backgroundColor: on ? css : '#3a3a3c',
+                  backgroundColor: on ? css : 'var(--line2)',
                   boxShadow: on ? `0 0 8px 1px ${css}` : undefined,
                 }}
               />
               <span
                 className={clsx(
-                  'font-mono text-xs tabular-nums',
-                  on ? 'text-white' : 'text-[#8e8e93]',
+                  'font-mono text-xs font-semibold tabular-nums',
+                  on ? 'text-tx' : 'text-tx2',
                 )}
               >
                 LED {led}
               </span>
-              {led === 7 && <span className="ml-auto text-[10px] text-[#636366]">top</span>}
-              {led === 1 && <span className="ml-auto text-[10px] text-[#636366]">bottom</span>}
+              {led === 7 && <span className="ml-auto text-[10px] text-tx3">top</span>}
+              {led === 1 && <span className="ml-auto text-[10px] text-tx3">bottom</span>}
             </button>
           )
         })}
@@ -92,9 +89,8 @@ export function LedPicker({ selected, onChange, color, disabled }: LedPickerProp
             onClick={() => applyGroup(g.leds)}
             disabled={disabled}
             className={clsx(
-              'rounded-md border border-[#2c2c2e] bg-[#141416] px-2.5 py-1 text-xs text-[#8e8e93] transition-colors',
-              'hover:border-[#3a3a3c] hover:text-white',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a84ff]',
+              'rounded-lg border border-line bg-panel2 px-2.5 py-1 text-xs font-semibold text-tx2 transition-colors',
+              'hover:border-line2 hover:text-tx',
               disabled && 'cursor-not-allowed opacity-40',
             )}
           >
